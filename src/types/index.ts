@@ -126,6 +126,8 @@ export interface Staff {
   institutionName?: string;
   assignedDoctorId?: string;
   assignedDoctorName?: string;
+  assignedLocationId?: string;
+  assignedChamberName?: string;
   status: 'active' | 'inactive';
 }
 

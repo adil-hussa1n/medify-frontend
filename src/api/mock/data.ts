@@ -607,17 +607,33 @@ export const mockDiagnosticCenters: DiagnosticCenter[] = [
 ];
 
 export const mockStaff: Staff[] = [
-  // Doctor Staff
+  // Doctor Staff (Specific Chambers & Private Practice Locations)
   {
     id: 'STF-001',
     userId: 'USR-DSTF-001',
-    name: 'Sara Khan (Dr. Rahman Assistant)',
+    name: 'Sara Khan (Chamber 204 Assistant)',
     email: 'sara.assistant@medify247.com',
     phone: '+880 1911 223344',
     role: 'doctor_staff',
     designation: 'Assistant',
     assignedDoctorId: 'DOC-001',
     assignedDoctorName: 'Prof. Dr. M. A. Rahman',
+    assignedLocationId: 'LOC-001',
+    assignedChamberName: 'Chamber 204 (Ibn Sina Hospital)',
+    status: 'active',
+  },
+  {
+    id: 'STF-008',
+    userId: 'USR-DSTF-008',
+    name: 'Jannat Ara (Private Chamber Assistant)',
+    email: 'jannat.chamber@medify247.com',
+    phone: '+880 1911 445566',
+    role: 'doctor_staff',
+    designation: 'Assistant',
+    assignedDoctorId: 'DOC-001',
+    assignedDoctorName: 'Prof. Dr. M. A. Rahman',
+    assignedLocationId: 'LOC-003',
+    assignedChamberName: 'Rahman Medical Chamber (Private Chamber)',
     status: 'active',
   },
   {
@@ -630,14 +646,16 @@ export const mockStaff: Staff[] = [
     designation: 'Assistant',
     assignedDoctorId: 'DOC-002',
     assignedDoctorName: 'Dr. Fatima Begum',
+    assignedLocationId: 'LOC-004',
+    assignedChamberName: 'Chamber 302 (Square Hospital)',
     status: 'active',
   },
 
-  // Hospital Staff (Chamber Receptionists & In-House Tests Managers)
+  // Hospital Staff (Chamber-Specific Receptionists & In-House Tests Managers)
   {
     id: 'STF-002',
     userId: 'USR-HSTF-001',
-    name: 'Kamal Hossain (Ibn Sina Doctor Chambers Desk)',
+    name: 'Kamal Hossain (Chamber 204 Desk)',
     email: 'reception.ibnsina@medify247.com',
     phone: '+880 1811 556677',
     role: 'hospital_staff',
@@ -646,6 +664,8 @@ export const mockStaff: Staff[] = [
     institutionName: 'Ibn Sina Specialized Hospital',
     assignedDoctorId: 'DOC-001',
     assignedDoctorName: 'Prof. Dr. M. A. Rahman',
+    assignedLocationId: 'LOC-001',
+    assignedChamberName: 'Chamber 204 (Cardiology OPD)',
     status: 'active',
   },
   {
@@ -673,7 +693,23 @@ export const mockStaff: Staff[] = [
     status: 'active',
   },
 
-  // Diagnostic Staff (Visiting Doctors Reception & Laboratory Technicians)
+  // Diagnostic Staff (Chamber-Specific Reception & Laboratory Technicians)
+  {
+    id: 'STF-007',
+    userId: 'USR-DSTF-007',
+    name: 'Rashidul Huq (Chamber 4 Desk)',
+    email: 'chambers.labaid@medify247.com',
+    phone: '+880 1711 778899',
+    role: 'diagnostic_staff',
+    designation: 'Receptionist',
+    institutionId: 'DIAG-001',
+    institutionName: 'Lab Aid Diagnostic Center',
+    assignedDoctorId: 'DOC-001',
+    assignedDoctorName: 'Prof. Dr. M. A. Rahman',
+    assignedLocationId: 'LOC-002',
+    assignedChamberName: 'Chamber 4 (Consultation Floor)',
+    status: 'active',
+  },
   {
     id: 'STF-003',
     userId: 'USR-DSTF-002',
@@ -684,20 +720,6 @@ export const mockStaff: Staff[] = [
     designation: 'Lab Technician',
     institutionId: 'DIAG-001',
     institutionName: 'Lab Aid Diagnostic Center',
-    status: 'active',
-  },
-  {
-    id: 'STF-007',
-    userId: 'USR-DSTF-007',
-    name: 'Rashidul Huq (Lab Aid Visiting Doctors Chamber Desk)',
-    email: 'chambers.labaid@medify247.com',
-    phone: '+880 1711 778899',
-    role: 'diagnostic_staff',
-    designation: 'Receptionist',
-    institutionId: 'DIAG-001',
-    institutionName: 'Lab Aid Diagnostic Center',
-    assignedDoctorId: 'DOC-001',
-    assignedDoctorName: 'Prof. Dr. M. A. Rahman',
     status: 'active',
   },
 ];
