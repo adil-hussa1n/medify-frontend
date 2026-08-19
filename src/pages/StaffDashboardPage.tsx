@@ -13,7 +13,7 @@ import {
 } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Plus, Phone, Stethoscope, Building2, User, FileText, CheckCircle2, RotateCcw, Calendar, Edit, Trash2, Search, Users, MapPin, Tag } from 'lucide-react';
+import { Plus, Phone, Stethoscope, Building2, User, FileText, CheckCircle2, RotateCcw, Calendar, Edit, Trash2, Search, Users, MapPin, Tag, FlaskConical, Clock } from 'lucide-react';
 import type { AppointmentStatus, DiagnosticOrderStatus, Staff } from '../types';
 import { mockStaff } from '../api/mock/data';
 
@@ -22,9 +22,6 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
 }) => {
   const { currentUser } = useAuth();
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
-
-  // Default tab depending on assigned staff task
-  const [staffTab, setStaffTab] = useState<'queue' | 'doctors' | 'tests' | 'staff_team'>('queue');
 
   // Scoped Entity IDs & Task Meta
   const assignedDoctorId = currentUser.assignedDoctorId || 'DOC-001';
@@ -39,7 +36,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
 
   // Live Appointments Query scoped strictly to assigned entity / chamber
   const { data: allAppointments = [], refetch: refetchAppointments } = useAppointments({
-    doctorId: staffType === 'doctor_staff' ? assignedDoctorId : undefined,
+    doctorId: staffType === 'doctor_staff' || (currentUser.assignedDoctorId && staffTaskType === 'chamber_desk') ? assignedDoctorId : undefined,
     institutionId: staffType === 'hospital_staff' ? hospitalId : undefined,
   });
 
@@ -231,122 +228,200 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
     setSearchQuery('');
   };
 
-  // Determine specific task heading based on currentUser.name and staffTaskType
-  const getTaskHeading = () => {
+  // Determine specific task heading & classification
+  const getTaskClassification = () => {
+    // 1. DOCTOR ASSISTANT (Individual Doctor & Chamber)
     if (staffType === 'doctor_staff') {
       return {
+        mode: 'doctor_chamber',
         title: `${currentUser.name}`,
-        subtitle: `Assigned Chamber: ${assignedChamberName || 'Doctor Practice Room'} • Doctor: ${assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'}`,
-        badgeColor: 'var(--primary-800)',
+        subtitle: `Doctor Chamber Assistant • Assigned Doctor: ${assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'}`,
+        chamberTag: assignedChamberName || 'Doctor Practice Room',
+        icon: <User size={22} color="var(--primary-800)" />,
+        badgeText: 'Doctor Assistant Desk',
+        badgeColor: 'badge-primary',
       };
     }
+
+    // 2. HOSPITAL STAFF
     if (staffType === 'hospital_staff') {
-      if (staffTaskType === 'chamber_desk' || currentUser.assignedDoctorId) {
+      if (staffTaskType === 'lab_desk') {
         return {
+          mode: 'hospital_lab',
           title: `${currentUser.name}`,
-          subtitle: `Hospital OPD Desk: ${assignedChamberName || 'Doctor Chambers'} • Assigned Doctor: ${assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'}`,
-          badgeColor: 'var(--primary-800)',
+          subtitle: `Ibn Sina Hospital • Pathology & Diagnostic Tests Operations Desk`,
+          chamberTag: 'Hospital Pathology & Imaging Wing',
+          icon: <FlaskConical size={22} color="var(--accent-600)" />,
+          badgeText: 'Hospital Lab & Tests Desk',
+          badgeColor: 'badge-accent',
         };
       }
       return {
+        mode: 'hospital_chamber',
         title: `${currentUser.name}`,
-        subtitle: `Hospital In-House Laboratory & Diagnostic Tests Dispatch Desk`,
-        badgeColor: 'var(--accent-600)',
+        subtitle: `Ibn Sina Hospital • OPD Doctor Chambers Reception Desk (${assignedDoctor?.name || 'Assigned Doctor'})`,
+        chamberTag: assignedChamberName || 'Chamber 204 (Cardiology OPD)',
+        icon: <Building2 size={22} color="var(--primary-800)" />,
+        badgeText: 'Hospital Doctor Chambers Desk',
+        badgeColor: 'badge-primary',
       };
     }
+
+    // 3. DIAGNOSTIC STAFF
     if (staffType === 'diagnostic_staff') {
       if (staffTaskType === 'lab_desk') {
         return {
+          mode: 'diagnostic_lab',
           title: `${currentUser.name}`,
-          subtitle: `Pathology & Clinical Laboratory Investigation Queue Desk`,
-          badgeColor: 'var(--accent-600)',
+          subtitle: `Lab Aid Diagnostic • Clinical Pathology & Sample Investigation Pipeline`,
+          chamberTag: 'Pathology & Diagnostic Testing Lab',
+          icon: <Stethoscope size={22} color="var(--accent-600)" />,
+          badgeText: 'Diagnostic Pathology Lab Tech',
+          badgeColor: 'badge-accent',
         };
       }
       return {
+        mode: 'diagnostic_chamber',
         title: `${currentUser.name}`,
-        subtitle: `Diagnostic Center Visiting Doctors Chamber Operations: ${assignedChamberName || 'Chamber 4'}`,
-        badgeColor: 'var(--primary-800)',
+        subtitle: `Lab Aid Diagnostic • Visiting Specialist Doctor Chamber Desk (${assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'})`,
+        chamberTag: assignedChamberName || 'Chamber 4 (Consultation Floor)',
+        icon: <Building2 size={22} color="var(--primary-800)" />,
+        badgeText: 'Visiting Doctor Chamber Desk',
+        badgeColor: 'badge-primary',
       };
     }
+
     return {
+      mode: 'doctor_chamber',
       title: `${currentUser.name}`,
       subtitle: `Assigned Operational Desk`,
-      badgeColor: 'var(--primary-800)',
+      chamberTag: 'General Reception',
+      icon: <User size={22} color="var(--primary-800)" />,
+      badgeText: 'Staff Desk',
+      badgeColor: 'badge-slate',
     };
   };
 
-  const taskHeader = getTaskHeading();
+  const taskInfo = getTaskClassification();
+  const isLabDesk = taskInfo.mode === 'hospital_lab' || taskInfo.mode === 'diagnostic_lab';
 
   return (
     <div className="container page-wrapper" style={{ maxWidth: '1120px' }}>
       {/* Scoped Entity & Task Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            {staffType === 'doctor_staff' ? (
-              <User size={22} color="var(--primary-800)" />
-            ) : staffType === 'hospital_staff' ? (
-              <Building2 size={22} color="var(--primary-800)" />
-            ) : (
-              <Stethoscope size={22} color="var(--accent-600)" />
-            )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {taskInfo.icon}
             <h1 style={{ fontSize: '1.35rem', fontWeight: 800 }}>
-              {taskHeader.title}
+              {taskInfo.title}
             </h1>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+            <span className={`badge ${taskInfo.badgeColor}`} style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+              {taskInfo.badgeText}
+            </span>
             <span className="badge badge-slate" style={{ fontSize: '0.725rem' }}>
-              <Tag size={11} style={{ marginRight: '3px' }} />
-              {assignedChamberName ? assignedChamberName : staffTaskType === 'lab_desk' ? 'Lab & Tests Testing Desk' : 'Chambers Desk'}
+              <MapPin size={11} style={{ marginRight: '3px' }} />
+              {taskInfo.chamberTag}
             </span>
             <p className="text-muted text-xs">
-              {taskHeader.subtitle}
+              {taskInfo.subtitle}
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<Plus size={15} />}
-            onClick={() => setIsManualBookingOpen(true)}
-          >
-            Manual Serial Booking
-          </Button>
-          {staffType !== 'doctor_staff' && (
-            <Button variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddStaff}>
-              Add Staff Member
+          {!isLabDesk ? (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus size={15} />}
+              onClick={() => setIsManualBookingOpen(true)}
+            >
+              Manual Serial Booking
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus size={15} />}
+              onClick={() => alert('New test order registration initiated for patient.')}
+            >
+              Register Lab Order
             </Button>
           )}
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="tabs-nav" style={{ marginBottom: '1.25rem' }}>
-        <button className={`tab-btn ${staffTab === 'queue' ? 'active' : ''}`} onClick={() => setStaffTab('queue')}>
-          {staffType === 'diagnostic_staff' && staffTaskType === 'lab_desk'
-            ? `Sample Orders Pipeline (${diagnosticOrders.length})`
-            : `Assigned Chamber Queue (${filteredAppointments.length})`}
-        </button>
-        {staffType !== 'doctor_staff' && (
+      {/* Task Summary Stat Metrics */}
+      <div className="grid grid-cols-4 gap-3" style={{ marginBottom: '1.5rem' }}>
+        {!isLabDesk ? (
           <>
-            <button className={`tab-btn ${staffTab === 'doctors' ? 'active' : ''}`} onClick={() => setStaffTab('doctors')}>
-              Facility Doctors ({scopedDoctors.length})
-            </button>
-            <button className={`tab-btn ${staffTab === 'tests' ? 'active' : ''}`} onClick={() => setStaffTab('tests')}>
-              Facility Tests ({scopedTests.length})
-            </button>
-            <button className={`tab-btn ${staffTab === 'staff_team' ? 'active' : ''}`} onClick={() => setStaffTab('staff_team')}>
-              Staff Team & Chamber Roles ({staffList.length})
-            </button>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Chamber Queue</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--primary-800)' }}>{filteredAppointments.length}</strong>
+            </div>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Today's Serials</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--slate-900)' }}>
+                {filteredAppointments.filter((a) => a.appointmentDate === todayStr).length}
+              </strong>
+            </div>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Waiting Room</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--accent-600)' }}>
+                {filteredAppointments.filter((a) => ['booked', 'checked_in', 'waiting'].includes(a.status)).length}
+              </strong>
+            </div>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Completed</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--success-600)' }}>
+                {filteredAppointments.filter((a) => a.status === 'completed').length}
+              </strong>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Total Test Orders</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--slate-900)' }}>{diagnosticOrders.length}</strong>
+            </div>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Today's Samples</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--primary-800)' }}>
+                {diagnosticOrders.filter((o) => o.scheduledDate === todayStr).length}
+              </strong>
+            </div>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>In Processing</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--accent-600)' }}>
+                {diagnosticOrders.filter((o) => ['booked', 'accepted', 'sample_collected', 'processing'].includes(o.status)).length}
+              </strong>
+            </div>
+            <div className="card" style={{ padding: '0.85rem' }}>
+              <span className="text-xs text-muted" style={{ display: 'block' }}>Reports Ready</span>
+              <strong style={{ fontSize: '1.35rem', color: 'var(--success-600)' }}>
+                {diagnosticOrders.filter((o) => o.status === 'report_ready').length}
+              </strong>
+            </div>
           </>
         )}
       </div>
 
-      {/* 1. DOCTOR STAFF VIEW / HOSPITAL CHAMBERS DESK / DIAGNOSTIC VISITING DOCTOR DESK */}
-      {(staffTab === 'queue' && (staffType === 'doctor_staff' || staffTaskType === 'chamber_desk' || (staffType === 'hospital_staff' && !currentUser.staffTaskType))) && (
+      {/* PAGE 1: DOCTOR CHAMBER QUEUE VIEW (For Doctor Assistant, Hospital Chamber Desk, Diagnostic Chamber Desk) */}
+      {!isLabDesk && (
         <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                {taskInfo.chamberTag} — Patient Queue Control
+              </h2>
+              <p className="text-xs text-muted">
+                Doctor: {assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'} • Check in patients, manage waiting status, and record fees
+              </p>
+            </div>
+          </div>
+
           {/* Filtering Bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
@@ -476,9 +551,20 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         </div>
       )}
 
-      {/* 2. DIAGNOSTIC LAB TECH / HOSPITAL LAB DESK VIEW */}
-      {(staffTab === 'queue' && (staffTaskType === 'lab_desk' || (staffType === 'diagnostic_staff' && currentUser.staffTaskType === 'lab_desk'))) && (
+      {/* PAGE 2: LABORATORY & DIAGNOSTIC TESTS VIEW (For Hospital Lab Tech & Diagnostic Lab Tech) */}
+      {isLabDesk && (
         <div className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                {taskInfo.chamberTag} — Sample Processing Pipeline
+              </h2>
+              <p className="text-xs text-muted">
+                Manage phlebotomy collection, sample processing pipeline, and finalize reports
+              </p>
+            </div>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
               <button className={`tab-btn ${timeFilter === 'all' ? 'active' : ''}`} onClick={() => setTimeFilter('all')}>
@@ -590,209 +676,10 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         </div>
       )}
 
-      {/* 3. STAFF TEAM & ASSIGNMENTS */}
-      {staffTab === 'staff_team' && (
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Staff Team & Chamber Roles</h2>
-              <p className="text-xs text-muted">Manage individual staff for specific doctors and separate staff for laboratory tests</p>
-            </div>
-            <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddStaff}>
-              Assign New Staff
-            </Button>
-          </div>
-
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Staff Name</th>
-                  <th>Designation</th>
-                  <th>Assigned Chamber / Role</th>
-                  <th>Contact</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staffList.map((stf) => (
-                  <tr key={stf.id}>
-                    <td>
-                      <strong>{stf.name}</strong>
-                      <div className="text-xs text-muted">{stf.email}</div>
-                    </td>
-                    <td><span className="badge badge-slate">{stf.designation}</span></td>
-                    <td>
-                      {stf.assignedDoctorId ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <User size={14} color="var(--primary-800)" />
-                          <span style={{ fontWeight: 600, color: 'var(--primary-800)' }}>
-                            {stf.assignedChamberName || `Doctor Chamber: ${stf.assignedDoctorName}`}
-                          </span>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <Stethoscope size={14} color="var(--accent-600)" />
-                          <span style={{ fontWeight: 600, color: 'var(--accent-700)' }}>
-                            Tests & Laboratory Manager
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td><span className="text-xs">{stf.phone}</span></td>
-                    <td><span className="badge badge-success">Active</span></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        <Button size="sm" variant="outline" onClick={() => handleOpenEditStaff(stf)}>
-                          <Edit size={13} />
-                        </Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDeleteStaff(stf.id)}>
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Facility Doctors Tab */}
-      {staffType !== 'doctor_staff' && staffTab === 'doctors' && (
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-            Facility Doctors Roster ({scopedDoctors.length} Specialists)
-          </h2>
-          <div className="grid grid-cols-3 md-grid-cols-2 sm-grid-cols-1 gap-3">
-            {scopedDoctors.map((doc) => (
-              <div key={doc.id} className="card" style={{ padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center', backgroundColor: 'var(--slate-50)' }}>
-                <img src={doc.photoUrl} alt={doc.name} style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', objectFit: 'cover' }} />
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{doc.name}</h4>
-                  <p style={{ color: 'var(--primary-700)', fontSize: '0.8rem', fontWeight: 600 }}>{doc.specialization}</p>
-                  <p className="text-xs text-muted">Chamber 204 • Fee: ৳800</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Facility Tests Tab */}
-      {staffType !== 'doctor_staff' && staffTab === 'tests' && (
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-            Facility Diagnostic Tests ({scopedTests.length} Tests)
-          </h2>
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Test Name</th>
-                  <th>Category</th>
-                  <th>Sample Type</th>
-                  <th>Cash Price</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scopedTests.map((t) => (
-                  <tr key={t.id}>
-                    <td><strong>{t.name}</strong></td>
-                    <td><span className="badge badge-slate">{t.category}</span></td>
-                    <td>{t.sampleType}</td>
-                    <td><strong style={{ color: 'var(--primary-800)' }}>৳{t.price}</strong></td>
-                    <td><span className="badge badge-success">Active</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Staff Assignment Modal */}
-      <Modal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)} title={editingStaffId ? 'Edit Staff Member' : 'Assign New Staff Member'}>
-        <form onSubmit={handleSaveStaff}>
-          <div className="form-group">
-            <label className="form-label">Staff Full Name *</label>
-            <input type="text" required placeholder="e.g. Nusrat Jahan" className="form-input" value={staffName} onChange={(e) => setStaffName(e.target.value)} />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Staff Role Type *</label>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.35rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                <input
-                  type="radio"
-                  name="staffRoleType"
-                  checked={staffRoleType === 'doctor_assistant'}
-                  onChange={() => {
-                    setStaffRoleType('doctor_assistant');
-                    setStaffDesignation('Receptionist');
-                  }}
-                />
-                Individual Doctor Chamber Assistant
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                <input
-                  type="radio"
-                  name="staffRoleType"
-                  checked={staffRoleType === 'test_manager'}
-                  onChange={() => {
-                    setStaffRoleType('test_manager');
-                    setStaffDesignation('Lab Technician');
-                  }}
-                />
-                Diagnostic Tests Manager
-              </label>
-            </div>
-          </div>
-
-          {staffRoleType === 'doctor_assistant' ? (
-            <div className="form-group">
-              <label className="form-label">Assign to Specific Doctor *</label>
-              <select
-                className="form-select"
-                value={staffDoctorAssignment}
-                onChange={(e) => setStaffDoctorAssignment(e.target.value)}
-              >
-                {scopedDoctors.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name} ({doc.specialization})
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="form-group">
-              <label className="form-label">Designation</label>
-              <select
-                className="form-select"
-                value={staffDesignation}
-                onChange={(e) => setStaffDesignation(e.target.value as any)}
-              >
-                <option value="Lab Technician">Lab Technician (Pathology)</option>
-                <option value="Sample Collector">Phlebotomist / Sample Collector</option>
-                <option value="Manager">Laboratory Operations Manager</option>
-              </select>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
-            <Button type="button" variant="outline" onClick={() => setIsStaffModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary">{editingStaffId ? 'Save Changes' : 'Assign Staff'}</Button>
-          </div>
-        </form>
-      </Modal>
-
       <ManualBookingModal
         isOpen={isManualBookingOpen}
         onClose={() => setIsManualBookingOpen(false)}
-        fixedDoctorId={staffType === 'doctor_staff' ? assignedDoctorId : undefined}
+        fixedDoctorId={staffType === 'doctor_staff' || (currentUser.assignedDoctorId && staffTaskType === 'chamber_desk') ? assignedDoctorId : undefined}
         fixedLocationId={assignedLocationId || (staffType === 'hospital_staff' ? 'LOC-001' : staffType === 'diagnostic_staff' ? 'LOC-002' : undefined)}
         onSuccess={() => refetchAppointments()}
       />
