@@ -65,7 +65,7 @@
 
 html, body {
   width: 100%;
-  max-width: 100%;
+  max-width: 100vw;
   overflow-x: hidden; /* Strictly prevent horizontal scroll / overflow */
   position: relative;
 }
@@ -121,18 +121,27 @@ input, select, textarea {
   background: var(--slate-400);
 }
 
-/* Utility Containers */
+/* Responsive Containers with healthy mobile side margins */
 .container {
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1.15rem !important;
+    padding-right: 1.15rem !important;
+  }
 }
 
 @media (min-width: 768px) {
   .container {
-    padding: 0 1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 }
 
@@ -141,13 +150,15 @@ input, select, textarea {
   max-width: 100%;
   box-sizing: border-box;
   min-height: calc(100vh - 64px);
-  padding: 1.25rem 0 5.5rem;
+  padding-top: 1.25rem;
+  padding-bottom: 6rem;
   overflow-x: hidden;
 }
 
 @media (min-width: 768px) {
   .page-wrapper {
-    padding: 2rem 0 3.5rem;
+    padding-top: 2rem;
+    padding-bottom: 3.5rem;
   }
 }
 
@@ -232,5 +243,11 @@ h1, h2, h3, h4, h5, h6 {
 
   .mobile-full-width {
     width: 100% !important;
+  }
+
+  /* Safe margins on mobile elements */
+  .card {
+    padding: 1rem !important;
+    border-radius: var(--radius-lg) !important;
   }
 }
