@@ -97,6 +97,13 @@ function App() {
                 <Route path="/diagnostic-staff" element={<DiagnosticDashboardPage />} />
 
                 {/* Profile Routes for all users */}
+                {/* Super Admin Routes */}
+                <Route path="/admin" element={<SuperAdminDashboardPage />} />
+                <Route path="/admin/doctors" element={<SuperAdminDashboardPage />} />
+                <Route path="/admin/hospitals" element={<SuperAdminDashboardPage />} />
+                <Route path="/admin/diagnostic" element={<SuperAdminDashboardPage />} />
+
+                {/* Profile Routes for all users */}
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/patient/profile" element={<ProfilePage />} />
                 <Route path="/doctor/profile" element={<ProfilePage />} />
