@@ -65,159 +65,59 @@ export const Header: React.FC = () => {
     admin: 'Super Admin',
   };
 
-  // Role-Based Top Nav Links
-  const renderRoleNavLinks = () => {
+  // Role-Specific Navigation items for Desktop Header and Mobile Slide Drawer
+  const getRoleLinks = () => {
     switch (currentUser.role) {
       case 'patient':
-        return (
-          <>
-            <Link
-              to="/patient"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: location.pathname === '/patient' ? 'var(--primary-800)' : 'var(--slate-700)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Home size={16} color="var(--primary-700)" />
-              <span>Patient Hub</span>
-            </Link>
-            <Link
-              to="/patient/appointments"
-              style={{
-                fontWeight: 500,
-                fontSize: '0.875rem',
-                color: location.pathname.startsWith('/patient/appointments') ? 'var(--primary-800)' : 'var(--slate-600)',
-              }}
-            >
-              My Appointments
-            </Link>
-            <Link
-              to="/patient/prescriptions"
-              style={{
-                fontWeight: 500,
-                fontSize: '0.875rem',
-                color: location.pathname.startsWith('/patient/prescriptions') ? 'var(--primary-800)' : 'var(--slate-600)',
-              }}
-            >
-              Prescriptions
-            </Link>
-            <Link
-              to="/patient/reports"
-              style={{
-                fontWeight: 500,
-                fontSize: '0.875rem',
-                color: location.pathname.startsWith('/patient/reports') ? 'var(--primary-800)' : 'var(--slate-600)',
-              }}
-            >
-              Lab Reports
-            </Link>
-          </>
-        );
+        return [
+          { label: 'Patient Dashboard', path: '/patient', icon: <Home size={16} /> },
+          { label: 'Find Doctors', path: '/doctors', icon: <Search size={16} /> },
+          { label: 'Diagnostic Tests', path: '/tests', icon: <Stethoscope size={16} /> },
+          { label: 'My Appointments', path: '/patient/appointments', icon: <Calendar size={16} /> },
+          { label: 'Prescriptions', path: '/patient/prescriptions', icon: <FileText size={16} /> },
+          { label: 'Lab Reports', path: '/patient/reports', icon: <Activity size={16} /> },
+        ];
 
       case 'doctor':
-        return (
-          <>
-            <Link
-              to="/doctor"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: location.pathname === '/doctor' ? 'var(--primary-800)' : 'var(--slate-700)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Home size={16} color="var(--primary-700)" />
-              <span>Doctor Portal</span>
-            </Link>
-            <Link
-              to="/doctor/prescriptions/new"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                color: 'var(--accent-600)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-            >
-              <PlusCircle size={15} />
-              <span>Issue Prescription</span>
-            </Link>
-          </>
-        );
+        return [
+          { label: 'Doctor Portal', path: '/doctor', icon: <Home size={16} /> },
+          { label: 'Issue Prescription (Rx)', path: '/doctor/prescriptions/new', icon: <PlusCircle size={16} /> },
+          { label: 'Find Specialists', path: '/doctors', icon: <Search size={16} /> },
+        ];
 
       case 'hospital':
       case 'hospital_staff':
-        return (
-          <>
-            <Link
-              to={getDashboardPath(currentUser.role)}
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: location.pathname.startsWith('/hospital') ? 'var(--primary-800)' : 'var(--slate-700)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Building2 size={16} color="var(--primary-700)" />
-              <span>Hospital Queue Hub</span>
-            </Link>
-          </>
-        );
+        return [
+          { label: 'Hospital Hub', path: '/hospital', icon: <Building2 size={16} /> },
+          { label: 'Doctors Roster', path: '/doctors', icon: <Users size={16} /> },
+          { label: 'Diagnostic Tests', path: '/tests', icon: <Stethoscope size={16} /> },
+        ];
 
       case 'diagnostic':
       case 'diagnostic_staff':
-        return (
-          <>
-            <Link
-              to={getDashboardPath(currentUser.role)}
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: location.pathname.startsWith('/diagnostic') ? 'var(--primary-800)' : 'var(--slate-700)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Stethoscope size={16} color="var(--accent-600)" />
-              <span>Diagnostic Pipeline</span>
-            </Link>
-          </>
-        );
+        return [
+          { label: 'Diagnostic Portal', path: '/diagnostic', icon: <Stethoscope size={16} /> },
+          { label: 'Pathology Tests', path: '/tests', icon: <FileText size={16} /> },
+          { label: 'Chamber Doctors', path: '/doctors', icon: <Users size={16} /> },
+        ];
 
       case 'admin':
-        return (
-          <>
-            <Link
-              to="/admin"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: location.pathname.startsWith('/admin') ? 'var(--primary-800)' : 'var(--slate-700)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Shield size={16} color="var(--danger-600)" />
-              <span>Super Admin Governance</span>
-            </Link>
-          </>
-        );
+        return [
+          { label: 'Super Admin Hub', path: '/admin', icon: <Shield size={16} /> },
+          { label: 'Doctors', path: '/doctors', icon: <Users size={16} /> },
+          { label: 'Hospitals', path: '/hospitals', icon: <Building2 size={16} /> },
+          { label: 'Diagnostic Centers', path: '/diagnostic-centers', icon: <Stethoscope size={16} /> },
+        ];
 
       default:
-        return null;
+        return [
+          { label: 'Home', path: '/', icon: <Home size={16} /> },
+          { label: 'Doctors', path: '/doctors', icon: <Search size={16} /> },
+        ];
     }
   };
+
+  const roleLinks = getRoleLinks();
 
   return (
     <>
@@ -240,7 +140,7 @@ export const Header: React.FC = () => {
             gap: '1rem',
           }}
         >
-          {/* Left: Brand Logo & Hamburger */}
+          {/* Left: Brand Logo & Mobile Menu Hamburger */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -287,159 +187,40 @@ export const Header: React.FC = () => {
             </Link>
           </div>
 
-          {/* Desktop Navigation Links (Dynamic Based on Role) */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }} className="desktop-nav">
-            {renderRoleNavLinks()}
-
-            {/* Explore Services Dropdown */}
-            <div
-              style={{ position: 'relative' }}
-              onMouseEnter={() => setExploreDropdownOpen(true)}
-              onMouseLeave={() => setExploreDropdownOpen(false)}
-            >
-              <button
-                onClick={() => setExploreDropdownOpen(!exploreDropdownOpen)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  color:
-                    location.pathname.startsWith('/doctors') ||
-                    location.pathname.startsWith('/hospitals') ||
-                    location.pathname.startsWith('/diagnostic-centers') ||
-                    location.pathname.startsWith('/tests')
-                      ? 'var(--primary-800)'
-                      : 'var(--slate-700)',
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: exploreDropdownOpen ? 'var(--slate-100)' : 'transparent',
-                }}
-              >
-                <span>Explore Directory</span>
-                <ChevronDown size={15} />
-              </button>
-
-              {exploreDropdownOpen && (
-                <div
+          {/* Desktop Navigation Links (Strictly hidden on mobile via .desktop-nav) */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '1.15rem' }} className="desktop-nav">
+            {roleLinks.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
                   style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: '100%',
-                    width: '260px',
-                    backgroundColor: 'var(--white)',
-                    borderRadius: 'var(--radius-lg)',
-                    boxShadow: 'var(--shadow-xl)',
-                    border: '1px solid var(--slate-200)',
-                    padding: '0.5rem',
-                    zIndex: 200,
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: '0.875rem',
+                    color: isActive ? 'var(--primary-800)' : 'var(--slate-700)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
                   }}
                 >
-                  <Link
-                    to="/doctors"
-                    onClick={() => setExploreDropdownOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      color: 'var(--slate-800)',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                    }}
-                    className="dropdown-item"
-                  >
-                    <Search size={16} color="var(--primary-700)" />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>Find Doctors</div>
-                      <div className="text-xs text-muted">Specialists & Chambers</div>
-                    </div>
-                  </Link>
+                  {item.label}
+                </Link>
+              );
+            })}
 
-                  <Link
-                    to="/hospitals"
-                    onClick={() => setExploreDropdownOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      color: 'var(--slate-800)',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                    }}
-                    className="dropdown-item"
-                  >
-                    <Building2 size={16} color="var(--primary-700)" />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>Hospitals</div>
-                      <div className="text-xs text-muted">Partner Clinics & OPDs</div>
-                    </div>
-                  </Link>
-
-                  <Link
-                    to="/diagnostic-centers"
-                    onClick={() => setExploreDropdownOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      color: 'var(--slate-800)',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                    }}
-                    className="dropdown-item"
-                  >
-                    <Stethoscope size={16} color="var(--accent-600)" />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>Diagnostic Centers</div>
-                      <div className="text-xs text-muted">Testing Laboratories</div>
-                    </div>
-                  </Link>
-
-                  <Link
-                    to="/tests"
-                    onClick={() => setExploreDropdownOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      color: 'var(--slate-800)',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                    }}
-                    className="dropdown-item"
-                  >
-                    <FileText size={16} color="var(--accent-600)" />
-                    <div>
-                      <div style={{ fontWeight: 600 }}>Diagnostic Tests</div>
-                      <div className="text-xs text-muted">Individual Pathology Tests</div>
-                    </div>
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Profile Link */}
             <Link
               to="/profile"
               style={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
+                fontWeight: location.pathname === '/profile' ? 700 : 500,
+                fontSize: '0.875rem',
                 color: location.pathname === '/profile' ? 'var(--primary-800)' : 'var(--slate-700)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.35rem',
+                gap: '0.3rem',
               }}
             >
-              <User size={16} color="var(--primary-700)" />
+              <User size={15} color="var(--primary-700)" />
               <span>Profile</span>
             </Link>
           </nav>
@@ -452,13 +233,13 @@ export const Header: React.FC = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
+                  gap: '0.35rem',
                   backgroundColor: 'var(--primary-50)',
                   color: 'var(--primary-800)',
                   border: '1px solid var(--primary-200)',
-                  padding: '0.45rem 0.85rem',
+                  padding: '0.4rem 0.75rem',
                   borderRadius: 'var(--radius-full)',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.8rem',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
                 }}
@@ -474,7 +255,7 @@ export const Header: React.FC = () => {
                     position: 'absolute',
                     right: 0,
                     top: '115%',
-                    width: '260px',
+                    width: '250px',
                     backgroundColor: 'var(--white)',
                     borderRadius: 'var(--radius-lg)',
                     boxShadow: 'var(--shadow-xl)',
@@ -492,7 +273,7 @@ export const Header: React.FC = () => {
                       textTransform: 'uppercase',
                     }}
                   >
-                    Switch User Role Persona
+                    Switch Active Persona
                   </div>
                   {(
                     [
@@ -516,9 +297,9 @@ export const Header: React.FC = () => {
                       style={{
                         width: '100%',
                         textAlign: 'left',
-                        padding: '0.55rem 0.75rem',
+                        padding: '0.5rem 0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8125rem',
                         color: currentUser.role === role ? 'var(--primary-800)' : 'var(--slate-700)',
                         fontWeight: currentUser.role === role ? 700 : 400,
                         backgroundColor: currentUser.role === role ? 'var(--primary-50)' : 'transparent',
@@ -543,7 +324,7 @@ export const Header: React.FC = () => {
                       marginTop: '0.35rem',
                     }}
                   >
-                    My Account
+                    Account
                   </div>
                   <Link
                     to="/profile"
@@ -551,9 +332,9 @@ export const Header: React.FC = () => {
                     style={{
                       width: '100%',
                       textAlign: 'left',
-                      padding: '0.55rem 0.75rem',
+                      padding: '0.5rem 0.75rem',
                       borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.85rem',
+                      fontSize: '0.8125rem',
                       color: 'var(--primary-800)',
                       fontWeight: 700,
                       backgroundColor: 'var(--primary-50)',
@@ -563,7 +344,7 @@ export const Header: React.FC = () => {
                     }}
                   >
                     <User size={15} />
-                    <span>Edit My Profile & Settings</span>
+                    <span>My Profile & Settings</span>
                   </Link>
                 </div>
               )}
@@ -572,7 +353,7 @@ export const Header: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Drawer Menu */}
+      {/* Role-Tailored Mobile Slide Drawer */}
       {mobileMenuOpen && (
         <div
           className="modal-overlay"
@@ -620,109 +401,34 @@ export const Header: React.FC = () => {
                   marginBottom: '0.5rem',
                 }}
               >
-                Explore & Find
+                {roleLabels[currentUser.role]} Menu
               </div>
+
+              {/* Dynamic Role Navigation Items in Drawer */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <Link
-                  to="/doctors"
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--slate-800)',
-                    fontWeight: 500,
-                  }}
-                >
-                  <Search size={18} color="var(--primary-700)" />
-                  <span>Find Doctors</span>
-                </Link>
-
-                <Link
-                  to="/hospitals"
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--slate-800)',
-                    fontWeight: 500,
-                  }}
-                >
-                  <Building2 size={18} color="var(--primary-700)" />
-                  <span>Hospitals</span>
-                </Link>
-
-                <Link
-                  to="/diagnostic-centers"
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--slate-800)',
-                    fontWeight: 500,
-                  }}
-                >
-                  <Stethoscope size={18} color="var(--accent-600)" />
-                  <span>Diagnostic Centers</span>
-                </Link>
-
-                <Link
-                  to="/tests"
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--slate-800)',
-                    fontWeight: 500,
-                  }}
-                >
-                  <FileText size={18} color="var(--accent-600)" />
-                  <span>Diagnostic Tests</span>
-                </Link>
-              </div>
-
-              <div
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  color: 'var(--slate-400)',
-                  textTransform: 'uppercase',
-                  marginTop: '1.5rem',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                Active Role Portal
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <Link
-                  to={getDashboardPath(currentUser.role)}
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--primary-800)',
-                    color: 'var(--white)',
-                    fontWeight: 600,
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  <User size={18} />
-                  <span>{roleLabels[currentUser.role]} Dashboard</span>
-                </Link>
+                {roleLinks.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem',
+                        borderRadius: 'var(--radius-md)',
+                        color: isActive ? 'var(--primary-800)' : 'var(--slate-800)',
+                        fontWeight: isActive ? 700 : 500,
+                        backgroundColor: isActive ? 'var(--primary-50)' : 'transparent',
+                      }}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
 
                 <Link
                   to="/profile"
@@ -733,13 +439,12 @@ export const Header: React.FC = () => {
                     gap: '0.75rem',
                     padding: '0.75rem',
                     borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--slate-100)',
-                    color: 'var(--slate-800)',
-                    fontWeight: 600,
-                    fontSize: '0.9rem',
+                    color: location.pathname === '/profile' ? 'var(--primary-800)' : 'var(--slate-800)',
+                    fontWeight: location.pathname === '/profile' ? 700 : 500,
+                    backgroundColor: location.pathname === '/profile' ? 'var(--primary-50)' : 'transparent',
                   }}
                 >
-                  <User size={18} color="var(--primary-800)" />
+                  <User size={16} />
                   <span>My Profile & Settings</span>
                 </Link>
               </div>
@@ -755,7 +460,7 @@ export const PatientMobileNav: React.FC = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
 
-  // Role-Tailored Mobile Bottom Nav Items
+  // Role-Tailored Mobile Bottom Nav Items (Distinct, Zero Repeats)
   const getNavItemsByRole = () => {
     switch (currentUser.role) {
       case 'patient':
@@ -770,9 +475,9 @@ export const PatientMobileNav: React.FC = () => {
       case 'doctor':
         return [
           { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Dashboard', path: '/doctor', icon: <Activity size={18} /> },
-          { label: 'New Rx', path: '/doctor/prescriptions/new', icon: <PlusCircle size={18} /> },
-          { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
+          { label: 'Queue Hub', path: '/doctor', icon: <Activity size={18} /> },
+          { label: 'Issue Rx', path: '/doctor/prescriptions/new', icon: <PlusCircle size={18} /> },
+          { label: 'Specialists', path: '/doctors', icon: <Search size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
 
@@ -780,9 +485,9 @@ export const PatientMobileNav: React.FC = () => {
       case 'hospital_staff':
         return [
           { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Hospital', path: '/hospital', icon: <Building2 size={18} /> },
+          { label: 'Queue Hub', path: '/hospital', icon: <Building2 size={18} /> },
           { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
-          { label: 'Tests', path: '/tests', icon: <Stethoscope size={18} /> },
+          { label: 'Lab Tests', path: '/tests', icon: <Stethoscope size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
 
@@ -790,8 +495,8 @@ export const PatientMobileNav: React.FC = () => {
       case 'diagnostic_staff':
         return [
           { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Diagnostic', path: '/diagnostic', icon: <Stethoscope size={18} /> },
-          { label: 'Tests', path: '/tests', icon: <FileText size={18} /> },
+          { label: 'Pipeline', path: '/diagnostic', icon: <Stethoscope size={18} /> },
+          { label: 'Lab Tests', path: '/tests', icon: <FileText size={18} /> },
           { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
@@ -799,7 +504,7 @@ export const PatientMobileNav: React.FC = () => {
       case 'admin':
         return [
           { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Admin Hub', path: '/admin', icon: <Shield size={18} /> },
+          { label: 'Governance', path: '/admin', icon: <Shield size={18} /> },
           { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
           { label: 'Hospitals', path: '/hospitals', icon: <Building2 size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
