@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDoctors, useHospitals, useDiagnosticCenters, useAuditLogs } from '../hooks/useHealthcare';
 import { Button, Modal } from '../components/ui/Core';
-import { Shield, Plus } from 'lucide-react';
+import { Shield, Plus, Edit, Trash2, CheckCircle2, Search, Filter } from 'lucide-react';
 import { doctorApi, hospitalApi, diagnosticCenterApi } from '../api';
 
 export const SuperAdminDashboardPage: React.FC = () => {
@@ -11,81 +11,198 @@ export const SuperAdminDashboardPage: React.FC = () => {
   const { data: auditLogs = [] } = useAuditLogs();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'doctors' | 'hospitals' | 'diagnostic' | 'audit'>('overview');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Create Doctor Modal
+  // 1. Create/Edit Doctor Modal
   const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false);
+  const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null);
   const [docName, setDocName] = useState('');
   const [docSpec, setDocSpec] = useState('Cardiologist');
   const [docQual, setDocQual] = useState('MBBS, FCPS');
   const [docReg, setDocReg] = useState('');
 
-  // Create Hospital Modal
+  // 2. Create/Edit Hospital Modal
   const [isHospitalModalOpen, setIsHospitalModalOpen] = useState(false);
+  const [editingHospitalId, setEditingHospitalId] = useState<string | null>(null);
   const [hospName, setHospName] = useState('');
   const [hospCity, setHospCity] = useState('Dhaka');
 
-  // Create Diagnostic Center Modal
+  // 3. Create/Edit Diagnostic Center Modal
   const [isDiagModalOpen, setIsDiagModalOpen] = useState(false);
+  const [editingDiagId, setEditingDiagId] = useState<string | null>(null);
   const [diagName, setDiagName] = useState('');
   const [diagCity, setDiagCity] = useState('Dhaka');
 
-  const handleCreateDoctor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await doctorApi.createDoctor({
-      name: docName,
-      specialization: docSpec,
-      qualifications: docQual.split(',').map((s) => s.trim()),
-      registrationNumber: docReg || `BMDC Reg #A-${Math.floor(10000 + Math.random() * 90000)}`,
-    });
-    setIsDoctorModalOpen(false);
+  // Doctor CRUD
+  const handleOpenCreateDoctor = () => {
+    setEditingDoctorId(null);
     setDocName('');
+    setDocSpec('Cardiologist');
+    setDocQual('MBBS, FCPS');
+    setDocReg('');
+    setIsDoctorModalOpen(true);
+  };
+
+  const handleOpenEditDoctor = (doc: any) => {
+    setEditingDoctorId(doc.id);
+    setDocName(doc.name);
+    setDocSpec(doc.specialization);
+    setDocQual(doc.qualifications?.join(', ') || 'MBBS');
+    setDocReg(doc.registrationNumber || '');
+    setIsDoctorModalOpen(true);
+  };
+
+  const handleSaveDoctor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingDoctorId) {
+      const doc = doctors.find((d) => d.id === editingDoctorId);
+      if (doc) {
+        doc.name = docName;
+        doc.specialization = docSpec;
+        doc.qualifications = docQual.split(',').map((s) => s.trim());
+        doc.registrationNumber = docReg;
+      }
+    } else {
+      await doctorApi.createDoctor({
+        name: docName,
+        specialization: docSpec,
+        qualifications: docQual.split(',').map((s) => s.trim()),
+        registrationNumber: docReg || `BMDC Reg #A-${Math.floor(10000 + Math.random() * 90000)}`,
+      });
+    }
+    setIsDoctorModalOpen(false);
     refetchDoctors();
   };
 
-  const handleCreateHospital = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await hospitalApi.createHospital({
-      name: hospName,
-      city: hospCity,
-    });
-    setIsHospitalModalOpen(false);
+  const handleDeleteDoctor = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this doctor from directory?')) {
+      const idx = doctors.findIndex((d) => d.id === id);
+      if (idx !== -1) doctors.splice(idx, 1);
+      refetchDoctors();
+    }
+  };
+
+  // Hospital CRUD
+  const handleOpenCreateHospital = () => {
+    setEditingHospitalId(null);
     setHospName('');
+    setHospCity('Dhaka');
+    setIsHospitalModalOpen(true);
+  };
+
+  const handleOpenEditHospital = (hosp: any) => {
+    setEditingHospitalId(hosp.id);
+    setHospName(hosp.name);
+    setHospCity(hosp.city);
+    setIsHospitalModalOpen(true);
+  };
+
+  const handleSaveHospital = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingHospitalId) {
+      const hosp = hospitals.find((h) => h.id === editingHospitalId);
+      if (hosp) {
+        hosp.name = hospName;
+        hosp.city = hospCity;
+      }
+    } else {
+      await hospitalApi.createHospital({
+        name: hospName,
+        city: hospCity,
+      });
+    }
+    setIsHospitalModalOpen(false);
     refetchHospitals();
   };
 
-  const handleCreateDiagnosticCenter = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await diagnosticCenterApi.createDiagnosticCenter({
-      name: diagName,
-      city: diagCity,
-    });
-    setIsDiagModalOpen(false);
+  const handleDeleteHospital = (id: string) => {
+    if (window.confirm('Delete this hospital entity?')) {
+      const idx = hospitals.findIndex((h) => h.id === id);
+      if (idx !== -1) hospitals.splice(idx, 1);
+      refetchHospitals();
+    }
+  };
+
+  // Diagnostic CRUD
+  const handleOpenCreateDiag = () => {
+    setEditingDiagId(null);
     setDiagName('');
+    setDiagCity('Dhaka');
+    setIsDiagModalOpen(true);
+  };
+
+  const handleOpenEditDiag = (diag: any) => {
+    setEditingDiagId(diag.id);
+    setDiagName(diag.name);
+    setDiagCity(diag.city);
+    setIsDiagModalOpen(true);
+  };
+
+  const handleSaveDiag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingDiagId) {
+      const diag = diagnosticCenters.find((d) => d.id === editingDiagId);
+      if (diag) {
+        diag.name = diagName;
+        diag.city = diagCity;
+      }
+    } else {
+      await diagnosticCenterApi.createDiagnosticCenter({
+        name: diagName,
+        city: diagCity,
+      });
+    }
+    setIsDiagModalOpen(false);
     refetchCenters();
   };
 
+  const handleDeleteDiag = (id: string) => {
+    if (window.confirm('Delete this diagnostic center entity?')) {
+      const idx = diagnosticCenters.findIndex((d) => d.id === id);
+      if (idx !== -1) diagnosticCenters.splice(idx, 1);
+      refetchCenters();
+    }
+  };
+
+  // Filtered Lists by Search
+  const filteredDoctors = doctors.filter((d) =>
+    d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.specialization.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredHospitals = hospitals.filter((h) =>
+    h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    h.city.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredDiagnostic = diagnosticCenters.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.city.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="container page-wrapper">
+    <div className="container page-wrapper" style={{ maxWidth: '1080px' }}>
       {/* Super Admin Top Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Shield size={22} color="var(--primary-800)" />
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Super Admin Platform Hub</h1>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Super Admin Platform Hub</h1>
           </div>
-          <p className="text-muted" style={{ marginTop: '0.15rem', fontSize: '0.8rem' }}>
-            Ecosystem governance & direct entity provisioning
+          <p className="text-muted text-xs" style={{ marginTop: '0.15rem' }}>
+            Direct Entity Governance & Full CRUD Operations across Doctors, Hospitals, and Diagnostic Centers.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', width: '100%' }}>
-          <Button variant="primary" size="sm" style={{ flex: 1, minWidth: '110px' }} leftIcon={<Plus size={14} />} onClick={() => setIsDoctorModalOpen(true)}>
+        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', width: '100%', maxWidth: '380px' }}>
+          <Button variant="primary" size="sm" style={{ flex: 1 }} leftIcon={<Plus size={14} />} onClick={handleOpenCreateDoctor}>
             Add Doctor
           </Button>
-          <Button variant="secondary" size="sm" style={{ flex: 1, minWidth: '110px' }} leftIcon={<Plus size={14} />} onClick={() => setIsHospitalModalOpen(true)}>
+          <Button variant="secondary" size="sm" style={{ flex: 1 }} leftIcon={<Plus size={14} />} onClick={handleOpenCreateHospital}>
             Add Hospital
           </Button>
-          <Button variant="outline" size="sm" style={{ flex: 1, minWidth: '110px' }} leftIcon={<Plus size={14} />} onClick={() => setIsDiagModalOpen(true)}>
+          <Button variant="outline" size="sm" style={{ flex: 1 }} leftIcon={<Plus size={14} />} onClick={handleOpenCreateDiag}>
             Add Center
           </Button>
         </div>
@@ -94,7 +211,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
       {/* Ecosystem KPI Summary */}
       <div className="grid grid-cols-4 gap-3" style={{ marginBottom: '1.5rem' }}>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Doctors</span>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Total Doctors</span>
           <strong style={{ fontSize: '1.35rem', color: 'var(--slate-900)' }}>{doctors.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
@@ -102,68 +219,89 @@ export const SuperAdminDashboardPage: React.FC = () => {
           <strong style={{ fontSize: '1.35rem', color: 'var(--primary-800)' }}>{hospitals.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Centers</span>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Diagnostic Centers</span>
           <strong style={{ fontSize: '1.35rem', color: 'var(--accent-600)' }}>{diagnosticCenters.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Logs</span>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Audit Logs</span>
           <strong style={{ fontSize: '1.35rem', color: 'var(--slate-700)' }}>{auditLogs.length}</strong>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="tabs-nav">
-        <button className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-          Overview
-        </button>
-        <button className={`tab-btn ${activeTab === 'doctors' ? 'active' : ''}`} onClick={() => setActiveTab('doctors')}>
-          Doctors ({doctors.length})
-        </button>
-        <button className={`tab-btn ${activeTab === 'hospitals' ? 'active' : ''}`} onClick={() => setActiveTab('hospitals')}>
-          Hospitals ({hospitals.length})
-        </button>
-        <button className={`tab-btn ${activeTab === 'diagnostic' ? 'active' : ''}`} onClick={() => setActiveTab('diagnostic')}>
-          Centers ({diagnosticCenters.length})
-        </button>
-        <button className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
-          Audit Logs
-        </button>
+      {/* Navigation Tabs & Search Input */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
+          <button className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+            Overview
+          </button>
+          <button className={`tab-btn ${activeTab === 'doctors' ? 'active' : ''}`} onClick={() => setActiveTab('doctors')}>
+            Doctors ({doctors.length})
+          </button>
+          <button className={`tab-btn ${activeTab === 'hospitals' ? 'active' : ''}`} onClick={() => setActiveTab('hospitals')}>
+            Hospitals ({hospitals.length})
+          </button>
+          <button className={`tab-btn ${activeTab === 'diagnostic' ? 'active' : ''}`} onClick={() => setActiveTab('diagnostic')}>
+            Diagnostic ({diagnosticCenters.length})
+          </button>
+          <button className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
+            Audit Logs
+          </button>
+        </div>
+
+        <div style={{ width: '220px' }}>
+          <input
+            type="text"
+            className="form-input"
+            style={{ fontSize: '0.8125rem', padding: '0.4rem 0.65rem' }}
+            placeholder="Search records..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
-      {/* Overview / Doctors List */}
+      {/* 1. Doctors CRUD Table */}
       {(activeTab === 'overview' || activeTab === 'doctors') && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>Global Doctors Directory</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Global Doctors Directory</h2>
+            <Button size="sm" variant="primary" leftIcon={<Plus size={13} />} onClick={handleOpenCreateDoctor}>
+              Add Doctor
+            </Button>
+          </div>
+
           <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
                   <th>Doctor ID</th>
-                  <th>Doctor Name</th>
-                  <th>Specialization & Reg</th>
-                  <th>Locations</th>
+                  <th>Name & Specialization</th>
+                  <th>BMDC Registration</th>
+                  <th>Chambers</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {doctors.map((doc) => (
+                {filteredDoctors.map((doc) => (
                   <tr key={doc.id}>
-                    <td>
-                      <strong>{doc.id}</strong>
-                    </td>
+                    <td><strong>{doc.id}</strong></td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{doc.name}</div>
-                      <div className="text-xs text-muted">{doc.email}</div>
+                      <div className="text-xs" style={{ color: 'var(--primary-700)' }}>{doc.specialization}</div>
                     </td>
+                    <td><div className="text-xs text-muted">{doc.registrationNumber}</div></td>
+                    <td><span className="badge badge-primary">{doc.practiceLocations.length} Chambers</span></td>
+                    <td><span className="badge badge-success">Verified</span></td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{doc.specialization}</div>
-                      <div className="text-xs text-muted">{doc.registrationNumber}</div>
-                    </td>
-                    <td>
-                      <span className="badge badge-primary">{doc.practiceLocations.length} Chambers</span>
-                    </td>
-                    <td>
-                      <span className="badge badge-success">Verified</span>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <Button size="sm" variant="outline" onClick={() => handleOpenEditDoctor(doc)}>
+                          <Edit size={13} />
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDeleteDoctor(doc.id)}>
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -173,9 +311,142 @@ export const SuperAdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Create Doctor Direct Modal */}
-      <Modal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} title="Direct Create Doctor">
-        <form onSubmit={handleCreateDoctor}>
+      {/* 2. Hospitals CRUD Table */}
+      {activeTab === 'hospitals' && (
+        <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Partner Hospitals Registry</h2>
+            <Button size="sm" variant="primary" leftIcon={<Plus size={13} />} onClick={handleOpenCreateHospital}>
+              Add Hospital
+            </Button>
+          </div>
+
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Hospital Name</th>
+                  <th>Registration</th>
+                  <th>City & Address</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredHospitals.map((hosp) => (
+                  <tr key={hosp.id}>
+                    <td>
+                      <strong>{hosp.name}</strong>
+                      <div className="text-xs text-muted">{hosp.email}</div>
+                    </td>
+                    <td><span className="badge badge-slate">{hosp.registrationNumber}</span></td>
+                    <td>
+                      <div>{hosp.city}</div>
+                      <div className="text-xs text-muted">{hosp.address}</div>
+                    </td>
+                    <td><span className="badge badge-success">Approved</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <Button size="sm" variant="outline" onClick={() => handleOpenEditHospital(hosp)}>
+                          <Edit size={13} />
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDeleteHospital(hosp.id)}>
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Diagnostic Centers CRUD Table */}
+      {activeTab === 'diagnostic' && (
+        <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Diagnostic Centers Registry</h2>
+            <Button size="sm" variant="primary" leftIcon={<Plus size={13} />} onClick={handleOpenCreateDiag}>
+              Add Center
+            </Button>
+          </div>
+
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Center Name</th>
+                  <th>DGHS Reg</th>
+                  <th>City</th>
+                  <th>Home Collection</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDiagnostic.map((diag) => (
+                  <tr key={diag.id}>
+                    <td><strong>{diag.name}</strong></td>
+                    <td><span className="badge badge-slate">{diag.registrationNumber}</span></td>
+                    <td>{diag.city}</td>
+                    <td>
+                      {diag.offersHomeCollection ? (
+                        <span className="badge badge-accent">Yes</span>
+                      ) : (
+                        <span className="badge badge-slate">No</span>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <Button size="sm" variant="outline" onClick={() => handleOpenEditDiag(diag)}>
+                          <Edit size={13} />
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDeleteDiag(diag.id)}>
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Audit Logs Table */}
+      {activeTab === 'audit' && (
+        <div className="card" style={{ padding: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>Platform Audit Trail</h2>
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>User & Role</th>
+                  <th>Action</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td><span className="text-xs text-muted">{new Date(log.timestamp).toLocaleString()}</span></td>
+                    <td><strong>{log.actorName}</strong> ({log.actorRole})</td>
+                    <td><span className="badge badge-primary">{log.action}</span></td>
+                    <td><div className="text-xs">{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Doctor Modal (Create & Edit) */}
+      <Modal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} title={editingDoctorId ? 'Edit Doctor Profile' : 'Direct Create Doctor'}>
+        <form onSubmit={handleSaveDoctor}>
           <div className="form-group">
             <label className="form-label">Doctor Full Name *</label>
             <input type="text" required placeholder="e.g. Prof. Dr. Kamal Ahmed" className="form-input" value={docName} onChange={(e) => setDocName(e.target.value)} />
@@ -197,51 +468,51 @@ export const SuperAdminDashboardPage: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" variant="primary">
-              Create & Verify
+              {editingDoctorId ? 'Save Changes' : 'Create & Verify'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Create Hospital Modal */}
-      <Modal isOpen={isHospitalModalOpen} onClose={() => setIsHospitalModalOpen(false)} title="Create Hospital">
-        <form onSubmit={handleCreateHospital}>
+      {/* Hospital Modal (Create & Edit) */}
+      <Modal isOpen={isHospitalModalOpen} onClose={() => setIsHospitalModalOpen(false)} title={editingHospitalId ? 'Edit Hospital Entity' : 'Create Hospital'}>
+        <form onSubmit={handleSaveHospital}>
           <div className="form-group">
             <label className="form-label">Hospital Name *</label>
             <input type="text" required placeholder="e.g. Apollo Hospital" className="form-input" value={hospName} onChange={(e) => setHospName(e.target.value)} />
           </div>
           <div className="form-group">
             <label className="form-label">City *</label>
-            <input type="text" required defaultValue="Dhaka" className="form-input" value={hospCity} onChange={(e) => setHospCity(e.target.value)} />
+            <input type="text" required className="form-input" value={hospCity} onChange={(e) => setHospCity(e.target.value)} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
             <Button type="button" variant="outline" onClick={() => setIsHospitalModalOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" variant="primary">
-              Create Hospital
+              {editingHospitalId ? 'Save Changes' : 'Create Hospital'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Create Diagnostic Center Modal */}
-      <Modal isOpen={isDiagModalOpen} onClose={() => setIsDiagModalOpen(false)} title="Create Diagnostic Center">
-        <form onSubmit={handleCreateDiagnosticCenter}>
+      {/* Diagnostic Center Modal (Create & Edit) */}
+      <Modal isOpen={isDiagModalOpen} onClose={() => setIsDiagModalOpen(false)} title={editingDiagId ? 'Edit Diagnostic Center' : 'Create Diagnostic Center'}>
+        <form onSubmit={handleSaveDiag}>
           <div className="form-group">
             <label className="form-label">Center Name *</label>
             <input type="text" required placeholder="e.g. Ibn Sina Diagnostic Center" className="form-input" value={diagName} onChange={(e) => setDiagName(e.target.value)} />
           </div>
           <div className="form-group">
             <label className="form-label">City *</label>
-            <input type="text" required defaultValue="Dhaka" className="form-input" value={diagCity} onChange={(e) => setDiagCity(e.target.value)} />
+            <input type="text" required className="form-input" value={diagCity} onChange={(e) => setDiagCity(e.target.value)} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
             <Button type="button" variant="outline" onClick={() => setIsDiagModalOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" variant="primary">
-              Create Center
+              {editingDiagId ? 'Save Changes' : 'Create Center'}
             </Button>
           </div>
         </form>
