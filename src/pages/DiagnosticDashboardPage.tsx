@@ -29,7 +29,11 @@ export const DiagnosticDashboardPage: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [selectedTestFilter, setSelectedTestFilter] = useState<string>('all'); // Test-wise filter
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Tests Tab Category Filter
+  const [selectedTestCategory, setSelectedTestCategory] = useState<string>('all');
 
   const [uploadModalOrder, setUploadModalOrder] = useState<any | null>(null);
 
@@ -58,8 +62,14 @@ export const DiagnosticDashboardPage: React.FC = () => {
     doc.practiceLocations.some((loc) => loc.institutionId === centerId || loc.institutionName.toLowerCase().includes('lab aid') || loc.institutionName.toLowerCase().includes('diagnostic'))
   );
 
+  // Filtered Orders (Test-wise, Date-wise, Status-wise)
   const filteredOrders = orders.filter((o) => {
-    // 1. Search Query
+    // 1. Test-wise Filter
+    if (selectedTestFilter !== 'all' && o.testName !== selectedTestFilter) {
+      return false;
+    }
+
+    // 2. Search Query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!o.patientName.toLowerCase().includes(q) && !o.testName.toLowerCase().includes(q) && !o.orderNumber.toLowerCase().includes(q)) {
@@ -67,21 +77,29 @@ export const DiagnosticDashboardPage: React.FC = () => {
       }
     }
 
-    // 2. Status Filter
+    // 3. Status Filter
     if (selectedStatusFilter !== 'all' && o.status !== selectedStatusFilter) {
       return false;
     }
 
-    // 3. Exact Date Filter
+    // 4. Exact Date Filter
     if (dateFilter && o.scheduledDate !== dateFilter) {
       return false;
     }
 
-    // 4. Time Range Filter
+    // 5. Time Range Filter
     if (timeFilter === 'today' && o.scheduledDate !== todayStr) return false;
     if (timeFilter === 'upcoming' && (o.scheduledDate < todayStr || o.status === 'report_ready')) return false;
     if (timeFilter === 'past' && (o.scheduledDate >= todayStr && o.status !== 'report_ready')) return false;
 
+    return true;
+  });
+
+  // Filtered Tests (Category-wise)
+  const filteredTests = tests.filter((t) => {
+    if (selectedTestCategory !== 'all' && t.category !== selectedTestCategory) {
+      return false;
+    }
     return true;
   });
 
@@ -251,6 +269,8 @@ export const DiagnosticDashboardPage: React.FC = () => {
     setTimeFilter('all');
     setDateFilter('');
     setSelectedStatusFilter('all');
+    setSelectedTestFilter('all');
+    setSelectedTestCategory('all');
     setSearchQuery('');
   };
 
@@ -264,7 +284,7 @@ export const DiagnosticDashboardPage: React.FC = () => {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Lab Aid Diagnostic Center Portal</h1>
           </div>
           <p className="text-muted text-xs" style={{ marginTop: '0.15rem' }}>
-            Diagnostic & Clinical Pathology Hub • Sample Pipeline, Pathology Tests & Visiting Doctors CRUD
+            Diagnostic & Clinical Pathology Hub • Test-Wise Sample Pipeline & Visiting Doctors CRUD
           </p>
         </div>
 
@@ -313,7 +333,7 @@ export const DiagnosticDashboardPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab 1: Orders Pipeline with Date Filtering */}
+      {/* Tab 1: Orders Pipeline with Test-Wise & Date Filtering */}
       {activeTab === 'orders' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
           {/* Order Filter Toolbar */}
@@ -334,6 +354,21 @@ export const DiagnosticDashboardPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Test-wise Filter Dropdown */}
+              <select
+                className="form-select"
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', fontWeight: 600, color: 'var(--accent-700)', borderColor: 'var(--accent-300)' }}
+                value={selectedTestFilter}
+                onChange={(e) => setSelectedTestFilter(e.target.value)}
+              >
+                <option value="all">Filter by Test (All)</option>
+                {tests.map((t) => (
+                  <option key={t.id} value={t.name}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+
               <input
                 type="date"
                 className="form-input"
@@ -354,7 +389,7 @@ export const DiagnosticDashboardPage: React.FC = () => {
                 <option value="processing">Processing</option>
                 <option value="report_ready">Report Ready</option>
               </select>
-              {(dateFilter || selectedStatusFilter !== 'all' || timeFilter !== 'all' || searchQuery) && (
+              {(dateFilter || selectedStatusFilter !== 'all' || selectedTestFilter !== 'all' || timeFilter !== 'all' || searchQuery) && (
                 <Button size="sm" variant="outline" onClick={handleResetFilters}>
                   <RotateCcw size={13} />
                 </Button>
@@ -430,17 +465,33 @@ export const DiagnosticDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 2: Offered Pathology Tests CRUD */}
+      {/* Tab 2: Offered Pathology Tests CRUD & Category Filtering */}
       {activeTab === 'tests' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Pathology & Diagnostic Tests Catalog</h2>
               <p className="text-xs text-muted">Create, Edit, and Delete tests available for patient booking</p>
             </div>
-            <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddTest}>
-              Add Test
-            </Button>
+
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <select
+                className="form-select"
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
+                value={selectedTestCategory}
+                onChange={(e) => setSelectedTestCategory(e.target.value)}
+              >
+                <option value="all">All Categories ({tests.length})</option>
+                <option value="Pathology">Pathology</option>
+                <option value="Hematology">Hematology</option>
+                <option value="Biochemistry">Biochemistry</option>
+                <option value="Cardiology">Cardiology</option>
+              </select>
+
+              <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddTest}>
+                Add Test
+              </Button>
+            </div>
           </div>
 
           <div className="table-container">
@@ -457,7 +508,7 @@ export const DiagnosticDashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {tests.map((t) => (
+                {filteredTests.map((t) => (
                   <tr key={t.id}>
                     <td>
                       <strong>{t.name}</strong>

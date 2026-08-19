@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAppointments, useDoctors, useStaff, useDiagnosticTests, useUpdateAppointmentStatus, useRecordPayment, useCreateDiagnosticTest } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Building2, Plus, User, FileText, Edit, Trash2, Search, RotateCcw, Calendar } from 'lucide-react';
+import { Building2, Plus, User, FileText, Edit, Trash2, Search, RotateCcw, Calendar, Filter } from 'lucide-react';
 import type { AppointmentStatus } from '../types';
 import { Link } from 'react-router-dom';
 
@@ -22,11 +22,15 @@ export const HospitalDashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'queue' | 'doctors' | 'tests'>('queue');
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
 
-  // Queue Filters
+  // Filters
   const [timeFilter, setTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('today');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('all'); // Doctor-wise filter
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Tests Tab Category Filter
+  const [selectedTestCategory, setSelectedTestCategory] = useState<string>('all');
 
   // Doctor CRUD State
   const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false);
@@ -54,9 +58,14 @@ export const HospitalDashboardPage: React.FC = () => {
     t.diagnosticCenterId === hospitalId || t.centerName?.toLowerCase().includes('ibn sina')
   );
 
-  // Filtered Queue
+  // Filtered Queue (Doctor-wise, Date-wise, Status-wise)
   const filteredAppointments = appointments.filter((a) => {
-    // 1. Search Query
+    // 1. Doctor-wise Filter
+    if (selectedDoctorFilter !== 'all' && a.doctorId !== selectedDoctorFilter) {
+      return false;
+    }
+
+    // 2. Search Query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!a.patientName.toLowerCase().includes(q) && !a.doctorName.toLowerCase().includes(q) && !String(a.serialNumber).includes(q)) {
@@ -64,21 +73,29 @@ export const HospitalDashboardPage: React.FC = () => {
       }
     }
 
-    // 2. Status Filter
+    // 3. Status Filter
     if (selectedStatusFilter !== 'all' && a.status !== selectedStatusFilter) {
       return false;
     }
 
-    // 3. Exact Date Filter
+    // 4. Exact Date Filter
     if (dateFilter && a.appointmentDate !== dateFilter) {
       return false;
     }
 
-    // 4. Time Range Filter
+    // 5. Time Range Filter
     if (timeFilter === 'today' && a.appointmentDate !== todayStr) return false;
     if (timeFilter === 'upcoming' && (a.appointmentDate < todayStr || a.status === 'completed')) return false;
     if (timeFilter === 'past' && (a.appointmentDate >= todayStr && a.status !== 'completed')) return false;
 
+    return true;
+  });
+
+  // Filtered Tests (Category-wise)
+  const filteredHospitalTests = (hospitalTests.length > 0 ? hospitalTests : allTests.slice(0, 4)).filter((t) => {
+    if (selectedTestCategory !== 'all' && t.category !== selectedTestCategory) {
+      return false;
+    }
     return true;
   });
 
@@ -229,6 +246,8 @@ export const HospitalDashboardPage: React.FC = () => {
     setTimeFilter('today');
     setDateFilter('');
     setSelectedStatusFilter('all');
+    setSelectedDoctorFilter('all');
+    setSelectedTestCategory('all');
     setSearchQuery('');
   };
 
@@ -242,7 +261,7 @@ export const HospitalDashboardPage: React.FC = () => {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Ibn Sina Specialized Hospital Portal</h1>
           </div>
           <p className="text-muted text-xs" style={{ marginTop: '0.15rem' }}>
-            Hospital Administration • OPD Queue, Doctor Roster & In-House Diagnostic Tests CRUD
+            Hospital Administration • Doctor-Wise & Test-Wise Queue Filtering & Full CRUD
           </p>
         </div>
 
@@ -292,7 +311,7 @@ export const HospitalDashboardPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab 1: Queue Control with Full Date Filtering */}
+      {/* Tab 1: Queue Control with Doctor-Wise & Date Filtering */}
       {activeTab === 'queue' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
           {/* Queue Filter Strip */}
@@ -313,6 +332,21 @@ export const HospitalDashboardPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Doctor-wise Filter Dropdown */}
+              <select
+                className="form-select"
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', fontWeight: 600, color: 'var(--primary-800)', borderColor: 'var(--primary-300)' }}
+                value={selectedDoctorFilter}
+                onChange={(e) => setSelectedDoctorFilter(e.target.value)}
+              >
+                <option value="all">Filter by Doctor (All)</option>
+                {hospitalDoctors.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.name} ({doc.specialization})
+                  </option>
+                ))}
+              </select>
+
               <input
                 type="date"
                 className="form-input"
@@ -333,7 +367,7 @@ export const HospitalDashboardPage: React.FC = () => {
                 <option value="in_consultation">In Consultation</option>
                 <option value="completed">Completed</option>
               </select>
-              {(dateFilter || selectedStatusFilter !== 'all' || timeFilter !== 'today' || searchQuery) && (
+              {(dateFilter || selectedStatusFilter !== 'all' || selectedDoctorFilter !== 'all' || timeFilter !== 'today' || searchQuery) && (
                 <Button size="sm" variant="outline" onClick={handleResetFilters}>
                   <RotateCcw size={13} />
                 </Button>
@@ -441,17 +475,33 @@ export const HospitalDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Hospital Diagnostic Tests CRUD */}
+      {/* Tab 3: Hospital Diagnostic Tests CRUD & Category Filtering */}
       {activeTab === 'tests' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>In-House Pathology & Diagnostic Tests</h2>
-              <p className="text-xs text-muted">Manage available laboratory investigations and cash pricing</p>
+              <p className="text-xs text-muted">Filter tests by category or manage laboratory investigation catalog</p>
             </div>
-            <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddTest}>
-              Add Test
-            </Button>
+
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <select
+                className="form-select"
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
+                value={selectedTestCategory}
+                onChange={(e) => setSelectedTestCategory(e.target.value)}
+              >
+                <option value="all">All Categories ({hospitalTests.length || 4})</option>
+                <option value="Hematology">Hematology</option>
+                <option value="Biochemistry">Biochemistry</option>
+                <option value="Cardiology">Cardiology</option>
+                <option value="Radiology & Imaging">Radiology</option>
+              </select>
+
+              <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddTest}>
+                Add Test
+              </Button>
+            </div>
           </div>
 
           <div className="table-container">
@@ -467,7 +517,7 @@ export const HospitalDashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {(hospitalTests.length > 0 ? hospitalTests : allTests.slice(0, 4)).map((t) => (
+                {filteredHospitalTests.map((t) => (
                   <tr key={t.id}>
                     <td><strong>{t.name}</strong></td>
                     <td><span className="badge badge-slate">{t.category}</span></td>
