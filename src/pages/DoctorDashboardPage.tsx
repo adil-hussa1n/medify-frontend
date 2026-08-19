@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAppointments, useDoctor, useUpdateAppointmentStatus, useRecordPayment } from '../hooks/useHealthcare';
 import { Button, StatusBadge } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Plus, FileText, Building2, Stethoscope, MapPin, ChevronRight, UserCheck, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Plus, FileText, Building2, Stethoscope, MapPin, ChevronRight, RotateCcw, Calendar } from 'lucide-react';
 import type { AppointmentStatus } from '../types';
 
 export const DoctorDashboardPage: React.FC = () => {
@@ -15,7 +15,6 @@ export const DoctorDashboardPage: React.FC = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const locIdParam = searchParams.get('locId');
-  const navigate = useNavigate();
 
   const updateStatusMutation = useUpdateAppointmentStatus();
   const recordPaymentMutation = useRecordPayment();
@@ -23,6 +22,10 @@ export const DoctorDashboardPage: React.FC = () => {
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
   const [activeLocationFilter, setActiveLocationFilter] = useState<string>(locIdParam || 'all');
   const [activeTab, setActiveTab] = useState<'all' | 'hospital' | 'diagnostic_center' | 'individual_chamber'>('all');
+
+  // Time & Date Filtering
+  const [timeFilter, setTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('today');
+  const [dateFilter, setDateFilter] = useState<string>('');
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayAppointments = allAppointments.filter((a) => a.appointmentDate === todayStr);
@@ -38,14 +41,36 @@ export const DoctorDashboardPage: React.FC = () => {
     };
   });
 
-  // Filter appointments by selected location or location type
+  // Filter appointments
   const effectiveLocFilter = locIdParam || activeLocationFilter;
   const filteredAppointments = allAppointments.filter((apt) => {
+    // 1. Location Filter
     if (effectiveLocFilter !== 'all' && apt.practiceLocationId !== effectiveLocFilter) {
       return false;
     }
-    if (activeTab === 'all') return true;
-    return apt.locationType === activeTab;
+
+    // 2. Tab Filter
+    if (activeTab !== 'all' && apt.locationType !== activeTab) {
+      return false;
+    }
+
+    // 3. Exact Date Filter
+    if (dateFilter && apt.appointmentDate !== dateFilter) {
+      return false;
+    }
+
+    // 4. Time Range Filter
+    if (timeFilter === 'today' && apt.appointmentDate !== todayStr) {
+      return false;
+    }
+    if (timeFilter === 'upcoming' && (apt.appointmentDate < todayStr || apt.status === 'completed')) {
+      return false;
+    }
+    if (timeFilter === 'past' && (apt.appointmentDate >= todayStr && apt.status !== 'completed')) {
+      return false;
+    }
+
+    return true;
   });
 
   const selectedLocationObj = locations.find((l) => l.id === effectiveLocFilter);
@@ -71,8 +96,10 @@ export const DoctorDashboardPage: React.FC = () => {
     setSearchParams({ locId });
   };
 
-  const handleResetLocationFilter = () => {
+  const handleResetFilters = () => {
     setActiveLocationFilter('all');
+    setTimeFilter('today');
+    setDateFilter('');
     setSearchParams({});
   };
 
@@ -98,17 +125,17 @@ export const DoctorDashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }} className="mobile-flex-col">
+        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', maxWidth: '360px' }}>
           <Button
             variant="primary"
             size="sm"
-            style={{ width: '100%' }}
+            style={{ flex: 1 }}
             leftIcon={<Plus size={15} />}
             onClick={() => setIsManualBookingOpen(true)}
           >
-            Manual Patient Booking
+            Manual Serial
           </Button>
-          <Link to="/doctor/prescriptions/new" style={{ width: '100%' }} className="mobile-full-width">
+          <Link to="/doctor/prescriptions/new" style={{ flex: 1 }}>
             <Button variant="accent" size="sm" style={{ width: '100%' }} leftIcon={<FileText size={15} />}>
               Create Rx
             </Button>
@@ -123,7 +150,7 @@ export const DoctorDashboardPage: React.FC = () => {
             Today's Practice Locations ({todayAppointments.length} Booked)
           </h2>
           {effectiveLocFilter !== 'all' && (
-            <Button size="sm" variant="outline" onClick={handleResetLocationFilter}>
+            <Button size="sm" variant="outline" onClick={handleResetFilters}>
               Show All Locations
             </Button>
           )}
@@ -193,53 +220,49 @@ export const DoctorDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Appointment Filter Tabs & Active Patient Queue Table */}
-      <div className="card" style={{ padding: '1.25rem' }}>
+      {/* Filter Toolbar for Appointments & Queue Table */}
+      <div className="card" style={{ padding: '1.25rem', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-              {selectedLocationObj ? `Active Queue: ${selectedLocationObj.institutionName}` : 'All Practice Locations Queue'}
+              {selectedLocationObj ? `Queue: ${selectedLocationObj.institutionName}` : 'All Patient Appointments'}
             </h2>
             <p className="text-xs text-muted">
-              {selectedLocationObj ? `${selectedLocationObj.chamberName} • Serial progression control` : 'Appointments clearly tagged by practice location'}
+              {selectedLocationObj ? `${selectedLocationObj.chamberName}` : 'Filter appointments by time range or exact calendar date'}
             </p>
           </div>
 
-          {effectiveLocFilter !== 'all' && (
-            <span className="badge badge-primary" style={{ padding: '0.35rem 0.75rem' }}>
-              Filtered: {selectedLocationObj?.institutionName}
-            </span>
-          )}
-        </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
+              <button className={`tab-btn ${timeFilter === 'today' ? 'active' : ''}`} onClick={() => setTimeFilter('today')}>
+                Today ({todayAppointments.length})
+              </button>
+              <button className={`tab-btn ${timeFilter === 'upcoming' ? 'active' : ''}`} onClick={() => setTimeFilter('upcoming')}>
+                Upcoming
+              </button>
+              <button className={`tab-btn ${timeFilter === 'past' ? 'active' : ''}`} onClick={() => setTimeFilter('past')}>
+                Past Consultations
+              </button>
+              <button className={`tab-btn ${timeFilter === 'all' ? 'active' : ''}`} onClick={() => setTimeFilter('all')}>
+                All Dates ({allAppointments.length})
+              </button>
+            </div>
 
-        {effectiveLocFilter === 'all' && (
-          <div className="tabs-nav">
-            <button
-              className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveTab('all')}
-            >
-              All ({allAppointments.length})
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'hospital' ? 'active' : ''}`}
-              onClick={() => setActiveTab('hospital')}
-            >
-              Hospital
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'diagnostic_center' ? 'active' : ''}`}
-              onClick={() => setActiveTab('diagnostic_center')}
-            >
-              Diagnostic Center
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'individual_chamber' ? 'active' : ''}`}
-              onClick={() => setActiveTab('individual_chamber')}
-            >
-              Private Chamber
-            </button>
+            <input
+              type="date"
+              className="form-input"
+              style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', width: '140px' }}
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            />
+
+            {(effectiveLocFilter !== 'all' || dateFilter || timeFilter !== 'today') && (
+              <Button size="sm" variant="outline" onClick={handleResetFilters}>
+                <RotateCcw size={13} />
+              </Button>
+            )}
           </div>
-        )}
+        </div>
 
         <div className="table-container">
           <table className="table">
@@ -259,7 +282,7 @@ export const DoctorDashboardPage: React.FC = () => {
               {filteredAppointments.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--slate-500)' }}>
-                    No appointments booked for this location today.
+                    No appointments match the selected filter criteria.
                   </td>
                 </tr>
               ) : (

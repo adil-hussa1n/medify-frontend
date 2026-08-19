@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDoctors, useHospitals, useDiagnosticCenters, useAuditLogs } from '../hooks/useHealthcare';
 import { Button, Modal } from '../components/ui/Core';
-import { Shield, Plus, Edit, Trash2, CheckCircle2, Search, Filter } from 'lucide-react';
+import { Shield, Plus, Edit, Trash2, CheckCircle2, Search, Building2, Stethoscope, User, Calendar, Activity } from 'lucide-react';
 import { doctorApi, hospitalApi, diagnosticCenterApi } from '../api';
 
 export const SuperAdminDashboardPage: React.FC = () => {
@@ -182,7 +182,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
   );
 
   return (
-    <div className="container page-wrapper" style={{ maxWidth: '1080px' }}>
+    <div className="container page-wrapper" style={{ maxWidth: '1120px' }}>
       {/* Super Admin Top Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div>
@@ -191,7 +191,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Super Admin Platform Hub</h1>
           </div>
           <p className="text-muted text-xs" style={{ marginTop: '0.15rem' }}>
-            Direct Entity Governance & Full CRUD Operations across Doctors, Hospitals, and Diagnostic Centers.
+            Unified Ecosystem Governance & Direct Entity Provisioning (Doctors, Hospitals, Diagnostic Centers, and Audit Logs).
           </p>
         </div>
 
@@ -223,7 +223,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
           <strong style={{ fontSize: '1.35rem', color: 'var(--accent-600)' }}>{diagnosticCenters.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Audit Logs</span>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Audit Trail</span>
           <strong style={{ fontSize: '1.35rem', color: 'var(--slate-700)' }}>{auditLogs.length}</strong>
         </div>
       </div>
@@ -232,7 +232,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
         <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
           <button className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-            Overview
+            Complete Overview
           </button>
           <button className={`tab-btn ${activeTab === 'doctors' ? 'active' : ''}`} onClick={() => setActiveTab('doctors')}>
             Doctors ({doctors.length})
@@ -241,7 +241,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
             Hospitals ({hospitals.length})
           </button>
           <button className={`tab-btn ${activeTab === 'diagnostic' ? 'active' : ''}`} onClick={() => setActiveTab('diagnostic')}>
-            Diagnostic ({diagnosticCenters.length})
+            Diagnostic Centers ({diagnosticCenters.length})
           </button>
           <button className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
             Audit Logs
@@ -260,8 +260,96 @@ export const SuperAdminDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Doctors CRUD Table */}
-      {(activeTab === 'overview' || activeTab === 'doctors') && (
+      {/* 🌟 COMPLETE OVERVIEW TAB (Includes Doctors, Hospitals & Diagnostic Centers) */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          {/* Section 1: Partner Hospitals Preview */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Building2 size={18} color="var(--primary-800)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Affiliated Partner Hospitals ({hospitals.length})</h3>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setActiveTab('hospitals')}>
+                Manage Hospitals →
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 md-grid-cols-2 sm-grid-cols-1 gap-3">
+              {filteredHospitals.slice(0, 3).map((h) => (
+                <div key={h.id} style={{ padding: '0.85rem', backgroundColor: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700 }}>{h.name}</h4>
+                    <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>Active</span>
+                  </div>
+                  <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>{h.address}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 2: Diagnostic Centers Preview */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Stethoscope size={18} color="var(--accent-600)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Diagnostic Centers & Labs ({diagnosticCenters.length})</h3>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setActiveTab('diagnostic')}>
+                Manage Centers →
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 md-grid-cols-2 sm-grid-cols-1 gap-3">
+              {filteredDiagnostic.slice(0, 3).map((c) => (
+                <div key={c.id} style={{ padding: '0.85rem', backgroundColor: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700 }}>{c.name}</h4>
+                    <span className="badge badge-accent" style={{ fontSize: '0.65rem' }}>DGHS Lab</span>
+                  </div>
+                  <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>{c.address}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 3: Verified Doctors Preview */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <User size={18} color="var(--primary-800)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Verified Specialist Doctors ({doctors.length})</h3>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setActiveTab('doctors')}>
+                Manage Doctors →
+              </Button>
+            </div>
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Doctor Name</th>
+                    <th>Specialization</th>
+                    <th>Chambers</th>
+                    <th>Registration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDoctors.slice(0, 4).map((doc) => (
+                    <tr key={doc.id}>
+                      <td><strong>{doc.name}</strong></td>
+                      <td><span style={{ color: 'var(--primary-700)', fontWeight: 600 }}>{doc.specialization}</span></td>
+                      <td><span className="badge badge-primary">{doc.practiceLocations.length} Locations</span></td>
+                      <td><span className="text-xs text-muted">{doc.registrationNumber}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Doctors CRUD Table Tab */}
+      {activeTab === 'doctors' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Global Doctors Directory</h2>
@@ -311,7 +399,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Hospitals CRUD Table */}
+      {/* 2. Hospitals CRUD Table Tab */}
       {activeTab === 'hospitals' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -363,7 +451,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Diagnostic Centers CRUD Table */}
+      {/* 3. Diagnostic Centers CRUD Table Tab */}
       {activeTab === 'diagnostic' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -415,7 +503,7 @@ export const SuperAdminDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 4. Audit Logs Table */}
+      {/* 4. Audit Logs Table Tab */}
       {activeTab === 'audit' && (
         <div className="card" style={{ padding: '1.25rem' }}>
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.75rem' }}>Platform Audit Trail</h2>
