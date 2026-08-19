@@ -22,6 +22,8 @@ export interface User {
   hospitalId?: string;
   diagnosticCenterId?: string;
   assignedDoctorId?: string;
+  address?: string;
+  bio?: string;
 }
 
 export interface Patient {

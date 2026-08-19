@@ -1,3 +1,4 @@
+/* Dropdown Hover & Styling */
 .dropdown-item:hover {
   background-color: var(--primary-50) !important;
   color: var(--primary-900) !important;
@@ -11,9 +12,32 @@
   display: none;
 }
 
-@media (max-width: 640px) {
+.desktop-nav {
+  display: flex !important;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.mobile-hamburger-btn {
+  display: none !important;
+}
+
+.mobile-only-nav {
+  display: none !important;
+}
+
+/* Strict Mobile Responsive Breakpoint (≤ 900px) */
+@media (max-width: 900px) {
+  .desktop-nav {
+    display: none !important; /* Strictly hide top links on mobile */
+  }
+
   .mobile-hamburger-btn {
     display: flex !important;
+  }
+
+  .mobile-only-nav {
+    display: flex !important; /* Move all links to bottom navigation bar */
   }
 
   .role-text-full {

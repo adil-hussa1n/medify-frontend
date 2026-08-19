@@ -18,6 +18,7 @@ import { PatientAppointmentsPage } from './pages/PatientAppointmentsPage';
 import { AppointmentDetailsPage } from './pages/AppointmentDetailsPage';
 import { PatientPrescriptionsPage } from './pages/PatientPrescriptionsPage';
 import { PatientReportsPage } from './pages/PatientReportsPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 // Doctor Portal
 import { DoctorDashboardPage } from './pages/DoctorDashboardPage';
@@ -73,7 +74,7 @@ function App() {
                 <Route path="/patient/prescriptions/:id" element={<PatientPrescriptionsPage />} />
                 <Route path="/patient/reports" element={<PatientReportsPage />} />
                 <Route path="/patient/reports/:id" element={<PatientReportsPage />} />
-                <Route path="/patient/profile" element={<PatientDashboardPage />} />
+                <Route path="/patient/profile" element={<ProfilePage />} />
 
                 {/* Doctor Routes */}
                 <Route path="/doctor" element={<DoctorDashboardPage />} />
@@ -95,10 +96,13 @@ function App() {
                 <Route path="/diagnostic/orders" element={<DiagnosticDashboardPage />} />
                 <Route path="/diagnostic-staff" element={<DiagnosticDashboardPage />} />
 
-                {/* Super Admin Routes */}
-                <Route path="/admin" element={<SuperAdminDashboardPage />} />
-                <Route path="/admin/doctors" element={<SuperAdminDashboardPage />} />
-                <Route path="/admin/hospitals" element={<SuperAdminDashboardPage />} />
+                {/* Profile Routes for all users */}
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/patient/profile" element={<ProfilePage />} />
+                <Route path="/doctor/profile" element={<ProfilePage />} />
+                <Route path="/hospital/profile" element={<ProfilePage />} />
+                <Route path="/diagnostic/profile" element={<ProfilePage />} />
+                <Route path="/admin/profile" element={<ProfilePage />} />
 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />

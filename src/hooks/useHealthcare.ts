@@ -165,6 +165,16 @@ export const useDiagnosticTests = (filters?: { centerId?: string; search?: strin
   });
 };
 
+export const useCreateDiagnosticTest = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof diagnosticApi.createTest>[0]) => diagnosticApi.createTest(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['diagnostic-tests'] });
+    },
+  });
+};
+
 export const useDiagnosticOrders = (filters?: { patientId?: string; centerId?: string; status?: string }) => {
   return useQuery({
     queryKey: ['diagnostic-orders', filters],
