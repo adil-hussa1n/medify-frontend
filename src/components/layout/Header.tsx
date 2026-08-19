@@ -18,7 +18,6 @@ import {
   CheckCircle,
   Shield,
   PlusCircle,
-  ClipboardList,
   Users,
 } from 'lucide-react';
 
@@ -29,7 +28,6 @@ export const Header: React.FC = () => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
-  const [exploreDropdownOpen, setExploreDropdownOpen] = useState(false);
 
   const getDashboardPath = (role: UserRole) => {
     switch (role) {
@@ -65,7 +63,7 @@ export const Header: React.FC = () => {
     admin: 'Super Admin',
   };
 
-  // Role-Specific Navigation items for Desktop Header and Mobile Slide Drawer
+  // Purely role-tailored links (Only essential links for that role)
   const getRoleLinks = () => {
     switch (currentUser.role) {
       case 'patient':
@@ -81,24 +79,33 @@ export const Header: React.FC = () => {
       case 'doctor':
         return [
           { label: 'Doctor Portal', path: '/doctor', icon: <Home size={16} /> },
-          { label: 'Issue Prescription (Rx)', path: '/doctor/prescriptions/new', icon: <PlusCircle size={16} /> },
-          { label: 'Find Specialists', path: '/doctors', icon: <Search size={16} /> },
+          { label: 'Issue Rx', path: '/doctor/prescriptions/new', icon: <PlusCircle size={16} /> },
+          { label: 'Colleagues & Directory', path: '/doctors', icon: <Search size={16} /> },
+        ];
+
+      case 'doctor_staff':
+        return [
+          { label: 'Doctor Assistant Desk', path: '/doctor-staff', icon: <Home size={16} /> },
         ];
 
       case 'hospital':
+        return [
+          { label: 'Hospital Portal', path: '/hospital', icon: <Building2 size={16} /> },
+        ];
+
       case 'hospital_staff':
         return [
-          { label: 'Hospital Hub', path: '/hospital', icon: <Building2 size={16} /> },
-          { label: 'Doctors Roster', path: '/doctors', icon: <Users size={16} /> },
-          { label: 'Diagnostic Tests', path: '/tests', icon: <Stethoscope size={16} /> },
+          { label: 'Hospital Front Desk', path: '/hospital-staff', icon: <Building2 size={16} /> },
         ];
 
       case 'diagnostic':
-      case 'diagnostic_staff':
         return [
           { label: 'Diagnostic Portal', path: '/diagnostic', icon: <Stethoscope size={16} /> },
-          { label: 'Pathology Tests', path: '/tests', icon: <FileText size={16} /> },
-          { label: 'Chamber Doctors', path: '/doctors', icon: <Users size={16} /> },
+        ];
+
+      case 'diagnostic_staff':
+        return [
+          { label: 'Diagnostic Lab Desk', path: '/diagnostic-staff', icon: <Stethoscope size={16} /> },
         ];
 
       case 'admin':
@@ -113,6 +120,7 @@ export const Header: React.FC = () => {
         return [
           { label: 'Home', path: '/', icon: <Home size={16} /> },
           { label: 'Doctors', path: '/doctors', icon: <Search size={16} /> },
+          { label: 'Tests', path: '/tests', icon: <Stethoscope size={16} /> },
         ];
     }
   };
@@ -187,8 +195,8 @@ export const Header: React.FC = () => {
             </Link>
           </div>
 
-          {/* Desktop Navigation Links (Strictly hidden on mobile via .desktop-nav) */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '1.15rem' }} className="desktop-nav">
+          {/* Desktop Navigation Links (Strictly role-relevant) */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }} className="desktop-nav">
             {roleLinks.map((item) => {
               const isActive = location.pathname === item.path;
               return (
@@ -460,7 +468,7 @@ export const PatientMobileNav: React.FC = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
 
-  // Role-Tailored Mobile Bottom Nav Items (Distinct, Zero Repeats)
+  // Strict Role-Tailored Mobile Bottom Nav Items (Zero Unnecessary Links)
   const getNavItemsByRole = () => {
     switch (currentUser.role) {
       case 'patient':
@@ -474,37 +482,44 @@ export const PatientMobileNav: React.FC = () => {
 
       case 'doctor':
         return [
-          { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Queue Hub', path: '/doctor', icon: <Activity size={18} /> },
+          { label: 'Portal', path: '/doctor', icon: <Activity size={18} /> },
           { label: 'Issue Rx', path: '/doctor/prescriptions/new', icon: <PlusCircle size={18} /> },
-          { label: 'Specialists', path: '/doctors', icon: <Search size={18} /> },
+          { label: 'Profile', path: '/profile', icon: <User size={18} /> },
+        ];
+
+      case 'doctor_staff':
+        return [
+          { label: 'Assistant Desk', path: '/doctor-staff', icon: <Activity size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
 
       case 'hospital':
+        return [
+          { label: 'Hospital Hub', path: '/hospital', icon: <Building2 size={18} /> },
+          { label: 'Profile', path: '/profile', icon: <User size={18} /> },
+        ];
+
       case 'hospital_staff':
         return [
-          { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Queue Hub', path: '/hospital', icon: <Building2 size={18} /> },
-          { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
-          { label: 'Lab Tests', path: '/tests', icon: <Stethoscope size={18} /> },
+          { label: 'Front Desk', path: '/hospital-staff', icon: <Building2 size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
 
       case 'diagnostic':
+        return [
+          { label: 'Diagnostic Hub', path: '/diagnostic', icon: <Stethoscope size={18} /> },
+          { label: 'Profile', path: '/profile', icon: <User size={18} /> },
+        ];
+
       case 'diagnostic_staff':
         return [
-          { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Pipeline', path: '/diagnostic', icon: <Stethoscope size={18} /> },
-          { label: 'Lab Tests', path: '/tests', icon: <FileText size={18} /> },
-          { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
+          { label: 'Lab Desk', path: '/diagnostic-staff', icon: <Stethoscope size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
 
       case 'admin':
         return [
-          { label: 'Home', path: '/', icon: <Home size={18} /> },
-          { label: 'Governance', path: '/admin', icon: <Shield size={18} /> },
+          { label: 'Super Admin Hub', path: '/admin', icon: <Shield size={18} /> },
           { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
           { label: 'Hospitals', path: '/hospitals', icon: <Building2 size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
@@ -514,7 +529,6 @@ export const PatientMobileNav: React.FC = () => {
         return [
           { label: 'Home', path: '/', icon: <Home size={18} /> },
           { label: 'Doctors', path: '/doctors', icon: <Search size={18} /> },
-          { label: 'Tests', path: '/tests', icon: <Stethoscope size={18} /> },
           { label: 'Profile', path: '/profile', icon: <User size={18} /> },
         ];
     }
@@ -552,11 +566,11 @@ export const PatientMobileNav: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.15rem',
-              fontSize: '0.65rem',
+              fontSize: '0.7rem',
               fontWeight: isActive ? 700 : 500,
               color: isActive ? 'var(--primary-800)' : 'var(--slate-500)',
               flex: 1,
-              padding: '0.2rem 0',
+              padding: '0.25rem 0',
             }}
           >
             <div style={{ color: isActive ? 'var(--primary-800)' : 'var(--slate-400)' }}>
