@@ -1,0 +1,26 @@
+.dropdown-item:hover {
+  background-color: var(--primary-50) !important;
+  color: var(--primary-900) !important;
+}
+
+.role-text-full {
+  display: inline;
+}
+
+.role-text-short {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-hamburger-btn {
+    display: flex !important;
+  }
+
+  .role-text-full {
+    display: none !important;
+  }
+
+  .role-text-short {
+    display: inline !important;
+  }
+}
