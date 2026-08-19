@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
-  const { currentUser, switchRole } = useAuth();
+  const { currentUser, switchRole, setCurrentUserById } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -343,8 +343,7 @@ export const Header: React.FC = () => {
                   </div>
                   <button
                     onClick={() => {
-                      // Switch to Chamber 204 Assistant
-                      switchRole('doctor_staff');
+                      setCurrentUserById('USR-DSTF-001');
                       setRoleSwitcherOpen(false);
                       navigate('/doctor-staff');
                     }}
@@ -354,21 +353,21 @@ export const Header: React.FC = () => {
                       padding: '0.35rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
-                      color: currentUser.role === 'doctor_staff' ? 'var(--primary-800)' : 'var(--slate-700)',
-                      fontWeight: currentUser.role === 'doctor_staff' ? 700 : 500,
-                      backgroundColor: currentUser.role === 'doctor_staff' ? 'var(--primary-50)' : 'transparent',
+                      color: currentUser.id === 'USR-DSTF-001' ? 'var(--primary-800)' : 'var(--slate-700)',
+                      fontWeight: currentUser.id === 'USR-DSTF-001' ? 700 : 500,
+                      backgroundColor: currentUser.id === 'USR-DSTF-001' ? 'var(--primary-50)' : 'transparent',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
                   >
                     <span>🩺 Dr. Rahman — Chamber 204</span>
-                    {currentUser.role === 'doctor_staff' && <CheckCircle size={13} color="var(--primary-800)" />}
+                    {currentUser.id === 'USR-DSTF-001' && <CheckCircle size={13} color="var(--primary-800)" />}
                   </button>
 
                   <button
                     onClick={() => {
-                      switchRole('doctor_staff');
+                      setCurrentUserById('USR-DSTF-008');
                       setRoleSwitcherOpen(false);
                       navigate('/doctor-staff');
                     }}
@@ -378,14 +377,16 @@ export const Header: React.FC = () => {
                       padding: '0.35rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
-                      color: 'var(--slate-700)',
-                      fontWeight: 500,
+                      color: currentUser.id === 'USR-DSTF-008' ? 'var(--primary-800)' : 'var(--slate-700)',
+                      fontWeight: currentUser.id === 'USR-DSTF-008' ? 700 : 500,
+                      backgroundColor: currentUser.id === 'USR-DSTF-008' ? 'var(--primary-50)' : 'transparent',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
                   >
                     <span>🩺 Dr. Rahman — Private Chamber</span>
+                    {currentUser.id === 'USR-DSTF-008' && <CheckCircle size={13} color="var(--primary-800)" />}
                   </button>
 
                   {/* 2. Hospital Staff Tasks */}
@@ -394,7 +395,7 @@ export const Header: React.FC = () => {
                   </div>
                   <button
                     onClick={() => {
-                      switchRole('hospital_staff');
+                      setCurrentUserById('USR-HSTF-001');
                       setRoleSwitcherOpen(false);
                       navigate('/hospital-staff');
                     }}
@@ -404,21 +405,21 @@ export const Header: React.FC = () => {
                       padding: '0.35rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
-                      color: currentUser.role === 'hospital_staff' ? 'var(--primary-800)' : 'var(--slate-700)',
-                      fontWeight: currentUser.role === 'hospital_staff' ? 700 : 500,
-                      backgroundColor: currentUser.role === 'hospital_staff' ? 'var(--primary-50)' : 'transparent',
+                      color: currentUser.id === 'USR-HSTF-001' ? 'var(--primary-800)' : 'var(--slate-700)',
+                      fontWeight: currentUser.id === 'USR-HSTF-001' ? 700 : 500,
+                      backgroundColor: currentUser.id === 'USR-HSTF-001' ? 'var(--primary-50)' : 'transparent',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
                   >
                     <span>🏥 Ibn Sina — Doctor Chambers Desk</span>
-                    {currentUser.role === 'hospital_staff' && <CheckCircle size={13} color="var(--primary-800)" />}
+                    {currentUser.id === 'USR-HSTF-001' && <CheckCircle size={13} color="var(--primary-800)" />}
                   </button>
 
                   <button
                     onClick={() => {
-                      switchRole('hospital_staff');
+                      setCurrentUserById('USR-HSTF-006');
                       setRoleSwitcherOpen(false);
                       navigate('/hospital-staff');
                     }}
@@ -428,14 +429,16 @@ export const Header: React.FC = () => {
                       padding: '0.35rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
-                      color: 'var(--slate-700)',
-                      fontWeight: 500,
+                      color: currentUser.id === 'USR-HSTF-006' ? 'var(--primary-800)' : 'var(--slate-700)',
+                      fontWeight: currentUser.id === 'USR-HSTF-006' ? 700 : 500,
+                      backgroundColor: currentUser.id === 'USR-HSTF-006' ? 'var(--primary-50)' : 'transparent',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
                   >
                     <span>🏥 Ibn Sina — Lab & Tests Desk</span>
+                    {currentUser.id === 'USR-HSTF-006' && <CheckCircle size={13} color="var(--primary-800)" />}
                   </button>
 
                   {/* 3. Diagnostic Staff Tasks */}
@@ -444,7 +447,7 @@ export const Header: React.FC = () => {
                   </div>
                   <button
                     onClick={() => {
-                      switchRole('diagnostic_staff');
+                      setCurrentUserById('USR-DSTF-002');
                       setRoleSwitcherOpen(false);
                       navigate('/diagnostic-staff');
                     }}
@@ -454,21 +457,21 @@ export const Header: React.FC = () => {
                       padding: '0.35rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
-                      color: currentUser.role === 'diagnostic_staff' ? 'var(--accent-700)' : 'var(--slate-700)',
-                      fontWeight: currentUser.role === 'diagnostic_staff' ? 700 : 500,
-                      backgroundColor: currentUser.role === 'diagnostic_staff' ? 'var(--accent-50)' : 'transparent',
+                      color: currentUser.id === 'USR-DSTF-002' ? 'var(--accent-700)' : 'var(--slate-700)',
+                      fontWeight: currentUser.id === 'USR-DSTF-002' ? 700 : 500,
+                      backgroundColor: currentUser.id === 'USR-DSTF-002' ? 'var(--accent-50)' : 'transparent',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
                   >
                     <span>🧪 Lab Aid — Pathology Lab Tech</span>
-                    {currentUser.role === 'diagnostic_staff' && <CheckCircle size={13} color="var(--accent-700)" />}
+                    {currentUser.id === 'USR-DSTF-002' && <CheckCircle size={13} color="var(--accent-700)" />}
                   </button>
 
                   <button
                     onClick={() => {
-                      switchRole('diagnostic_staff');
+                      setCurrentUserById('USR-DSTF-007');
                       setRoleSwitcherOpen(false);
                       navigate('/diagnostic-staff');
                     }}
@@ -478,14 +481,16 @@ export const Header: React.FC = () => {
                       padding: '0.35rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.75rem',
-                      color: 'var(--slate-700)',
-                      fontWeight: 500,
+                      color: currentUser.id === 'USR-DSTF-007' ? 'var(--accent-700)' : 'var(--slate-700)',
+                      fontWeight: currentUser.id === 'USR-DSTF-007' ? 700 : 500,
+                      backgroundColor: currentUser.id === 'USR-DSTF-007' ? 'var(--accent-50)' : 'transparent',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}
                   >
                     <span>🧪 Lab Aid — Visiting Doctor Chamber Desk</span>
+                    {currentUser.id === 'USR-DSTF-007' && <CheckCircle size={13} color="var(--accent-700)" />}
                   </button>
 
                   <div

@@ -22,6 +22,9 @@ export interface User {
   hospitalId?: string;
   diagnosticCenterId?: string;
   assignedDoctorId?: string;
+  assignedLocationId?: string;
+  assignedChamberName?: string;
+  staffTaskType?: 'chamber_desk' | 'lab_desk';
   address?: string;
   bio?: string;
 }

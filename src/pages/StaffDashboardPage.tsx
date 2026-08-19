@@ -13,7 +13,7 @@ import {
 } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Plus, Phone, Stethoscope, Building2, User, FileText, CheckCircle2, RotateCcw, Calendar, Edit, Trash2, Search, Users } from 'lucide-react';
+import { Plus, Phone, Stethoscope, Building2, User, FileText, CheckCircle2, RotateCcw, Calendar, Edit, Trash2, Search, Users, MapPin, Tag } from 'lucide-react';
 import type { AppointmentStatus, DiagnosticOrderStatus, Staff } from '../types';
 import { mockStaff } from '../api/mock/data';
 
@@ -22,21 +22,28 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
 }) => {
   const { currentUser } = useAuth();
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
+
+  // Default tab depending on assigned staff task
   const [staffTab, setStaffTab] = useState<'queue' | 'doctors' | 'tests' | 'staff_team'>('queue');
 
-  // Scoped Entity IDs
+  // Scoped Entity IDs & Task Meta
   const assignedDoctorId = currentUser.assignedDoctorId || 'DOC-001';
+  const assignedLocationId = currentUser.assignedLocationId;
+  const assignedChamberName = currentUser.assignedChamberName;
+  const staffTaskType = currentUser.staffTaskType || 'chamber_desk';
+
   const { data: assignedDoctor } = useDoctor(assignedDoctorId);
 
   const hospitalId = currentUser.hospitalId || 'HOSP-001';
   const diagnosticCenterId = currentUser.diagnosticCenterId || 'DIAG-001';
 
-  // Live Queries
+  // Live Appointments Query scoped strictly to assigned entity / chamber
   const { data: allAppointments = [], refetch: refetchAppointments } = useAppointments({
     doctorId: staffType === 'doctor_staff' ? assignedDoctorId : undefined,
     institutionId: staffType === 'hospital_staff' ? hospitalId : undefined,
   });
 
+  // Diagnostic Orders Query scoped strictly to assigned Diagnostic Center
   const { data: diagnosticOrders = [], refetch: refetchDiagnostic } = useDiagnosticOrders({
     centerId: staffType === 'diagnostic_staff' ? diagnosticCenterId : undefined,
   });
@@ -57,6 +64,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [doctorFilter, setDoctorFilter] = useState<string>('all');
   const [testFilter, setTestFilter] = useState<string>('all');
+  const [chamberFilter, setChamberFilter] = useState<string>(assignedLocationId || 'all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Staff CRUD Modal State
@@ -82,8 +90,16 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
       ? allTests.filter((t) => t.diagnosticCenterId === hospitalId || t.centerName?.toLowerCase().includes('ibn sina'))
       : allTests.filter((t) => t.diagnosticCenterId === diagnosticCenterId || t.centerName?.toLowerCase().includes('lab aid'));
 
-  // Filtered Appointments (Doctor-wise, Date-wise, Status-wise)
+  // Filtered Appointments (Chamber-isolated if assignedLocationId is present, else Doctor/Status-wise)
   const filteredAppointments = allAppointments.filter((apt) => {
+    // 1. Chamber Isolation (If staff member is assigned to a specific chamber room)
+    if (assignedLocationId && apt.practiceLocationId && apt.practiceLocationId !== assignedLocationId) {
+      return false;
+    }
+    if (chamberFilter !== 'all' && apt.practiceLocationId !== chamberFilter) {
+      return false;
+    }
+
     if (doctorFilter !== 'all' && apt.doctorId !== doctorFilter) return false;
     if (statusFilter !== 'all' && apt.status !== statusFilter) return false;
     if (dateFilter && apt.appointmentDate !== dateFilter) return false;
@@ -211,12 +227,59 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
     setStatusFilter('all');
     setDoctorFilter('all');
     setTestFilter('all');
+    setChamberFilter(assignedLocationId || 'all');
     setSearchQuery('');
   };
 
+  // Determine specific task heading based on currentUser.name and staffTaskType
+  const getTaskHeading = () => {
+    if (staffType === 'doctor_staff') {
+      return {
+        title: `${currentUser.name}`,
+        subtitle: `Assigned Chamber: ${assignedChamberName || 'Doctor Practice Room'} • Doctor: ${assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'}`,
+        badgeColor: 'var(--primary-800)',
+      };
+    }
+    if (staffType === 'hospital_staff') {
+      if (staffTaskType === 'chamber_desk' || currentUser.assignedDoctorId) {
+        return {
+          title: `${currentUser.name}`,
+          subtitle: `Hospital OPD Desk: ${assignedChamberName || 'Doctor Chambers'} • Assigned Doctor: ${assignedDoctor?.name || 'Prof. Dr. M. A. Rahman'}`,
+          badgeColor: 'var(--primary-800)',
+        };
+      }
+      return {
+        title: `${currentUser.name}`,
+        subtitle: `Hospital In-House Laboratory & Diagnostic Tests Dispatch Desk`,
+        badgeColor: 'var(--accent-600)',
+      };
+    }
+    if (staffType === 'diagnostic_staff') {
+      if (staffTaskType === 'lab_desk') {
+        return {
+          title: `${currentUser.name}`,
+          subtitle: `Pathology & Clinical Laboratory Investigation Queue Desk`,
+          badgeColor: 'var(--accent-600)',
+        };
+      }
+      return {
+        title: `${currentUser.name}`,
+        subtitle: `Diagnostic Center Visiting Doctors Chamber Operations: ${assignedChamberName || 'Chamber 4'}`,
+        badgeColor: 'var(--primary-800)',
+      };
+    }
+    return {
+      title: `${currentUser.name}`,
+      subtitle: `Assigned Operational Desk`,
+      badgeColor: 'var(--primary-800)',
+    };
+  };
+
+  const taskHeader = getTaskHeading();
+
   return (
     <div className="container page-wrapper" style={{ maxWidth: '1120px' }}>
-      {/* Scoped Entity Header Banner */}
+      {/* Scoped Entity & Task Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -227,17 +290,19 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
             ) : (
               <Stethoscope size={22} color="var(--accent-600)" />
             )}
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>
-              {staffType === 'doctor_staff'
-                ? `Assistant to ${assignedDoctor?.name || 'Assigned Doctor'}`
-                : staffType === 'hospital_staff'
-                ? 'Ibn Sina Hospital — Staff & Reception Operations'
-                : 'Lab Aid Diagnostic — Lab Testing & Doctor Chamber Desk'}
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800 }}>
+              {taskHeader.title}
             </h1>
           </div>
-          <p className="text-muted text-xs" style={{ marginTop: '0.15rem' }}>
-            {currentUser.name} • {staffType === 'doctor_staff' ? 'Doctor Assistant Scope' : staffType === 'hospital_staff' ? 'Tenant: Ibn Sina Specialized Hospital' : 'Tenant: Lab Aid Diagnostic Center'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+            <span className="badge badge-slate" style={{ fontSize: '0.725rem' }}>
+              <Tag size={11} style={{ marginRight: '3px' }} />
+              {assignedChamberName ? assignedChamberName : staffTaskType === 'lab_desk' ? 'Lab & Tests Testing Desk' : 'Chambers Desk'}
+            </span>
+            <p className="text-muted text-xs">
+              {taskHeader.subtitle}
+            </p>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -247,7 +312,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
             leftIcon={<Plus size={15} />}
             onClick={() => setIsManualBookingOpen(true)}
           >
-            Manual Booking
+            Manual Serial Booking
           </Button>
           {staffType !== 'doctor_staff' && (
             <Button variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddStaff}>
@@ -260,7 +325,9 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
       {/* Tabs Navigation */}
       <div className="tabs-nav" style={{ marginBottom: '1.25rem' }}>
         <button className={`tab-btn ${staffTab === 'queue' ? 'active' : ''}`} onClick={() => setStaffTab('queue')}>
-          {staffType === 'diagnostic_staff' ? `Sample Orders (${diagnosticOrders.length})` : `Patient Queue (${allAppointments.length})`}
+          {staffType === 'diagnostic_staff' && staffTaskType === 'lab_desk'
+            ? `Sample Orders Pipeline (${diagnosticOrders.length})`
+            : `Assigned Chamber Queue (${filteredAppointments.length})`}
         </button>
         {staffType !== 'doctor_staff' && (
           <>
@@ -271,20 +338,20 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
               Facility Tests ({scopedTests.length})
             </button>
             <button className={`tab-btn ${staffTab === 'staff_team' ? 'active' : ''}`} onClick={() => setStaffTab('staff_team')}>
-              Staff Team & Doctor Assignments ({staffList.length})
+              Staff Team & Chamber Roles ({staffList.length})
             </button>
           </>
         )}
       </div>
 
-      {/* 1. DOCTOR STAFF VIEW / HOSPITAL STAFF OPD QUEUE */}
-      {(staffType === 'doctor_staff' || (staffType === 'hospital_staff' && staffTab === 'queue')) && (
+      {/* 1. DOCTOR STAFF VIEW / HOSPITAL CHAMBERS DESK / DIAGNOSTIC VISITING DOCTOR DESK */}
+      {(staffTab === 'queue' && (staffType === 'doctor_staff' || staffTaskType === 'chamber_desk' || (staffType === 'hospital_staff' && !currentUser.staffTaskType))) && (
         <div className="card" style={{ padding: '1.25rem' }}>
           {/* Filtering Bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
               <button className={`tab-btn ${timeFilter === 'today' ? 'active' : ''}`} onClick={() => setTimeFilter('today')}>
-                Today ({allAppointments.filter((a) => a.appointmentDate === todayStr).length})
+                Today ({allAppointments.filter((a) => a.appointmentDate === todayStr && (!assignedLocationId || a.practiceLocationId === assignedLocationId)).length})
               </button>
               <button className={`tab-btn ${timeFilter === 'upcoming' ? 'active' : ''}`} onClick={() => setTimeFilter('upcoming')}>
                 Upcoming
@@ -293,25 +360,11 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                 Past OPD
               </button>
               <button className={`tab-btn ${timeFilter === 'all' ? 'active' : ''}`} onClick={() => setTimeFilter('all')}>
-                All Dates ({allAppointments.length})
+                All Dates ({filteredAppointments.length})
               </button>
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              {staffType === 'hospital_staff' && (
-                <select
-                  className="form-select"
-                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', fontWeight: 600, color: 'var(--primary-800)' }}
-                  value={doctorFilter}
-                  onChange={(e) => setDoctorFilter(e.target.value)}
-                >
-                  <option value="all">Doctor (All)</option>
-                  {scopedDoctors.map((doc) => (
-                    <option key={doc.id} value={doc.id}>{doc.name}</option>
-                  ))}
-                </select>
-              )}
-
               <input
                 type="date"
                 className="form-input"
@@ -332,7 +385,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                 <option value="in_consultation">In Consultation</option>
                 <option value="completed">Completed</option>
               </select>
-              {(dateFilter || statusFilter !== 'all' || doctorFilter !== 'all' || timeFilter !== 'today' || searchQuery) && (
+              {(dateFilter || statusFilter !== 'all' || timeFilter !== 'today' || searchQuery) && (
                 <Button size="sm" variant="outline" onClick={handleResetFilters}>
                   <RotateCcw size={13} />
                 </Button>
@@ -346,7 +399,8 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                 <tr>
                   <th>Serial</th>
                   <th>Patient Details</th>
-                  <th>Doctor / Chamber</th>
+                  <th>Chamber Room</th>
+                  <th>Doctor</th>
                   <th>Date & Time</th>
                   <th>Payment (Cash)</th>
                   <th>Status</th>
@@ -356,8 +410,8 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
               <tbody>
                 {filteredAppointments.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--slate-500)' }}>
-                      No appointment records found for selected filters.
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--slate-500)' }}>
+                      No patients in this chamber queue for the selected filters.
                     </td>
                   </tr>
                 ) : (
@@ -369,8 +423,11 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                         <div className="text-xs text-muted"><Phone size={11} style={{ display: 'inline', marginRight: '3px' }} />{apt.patientPhone}</div>
                       </td>
                       <td>
+                        <strong style={{ color: 'var(--primary-800)' }}>{apt.chamberName}</strong>
+                        <div className="text-xs text-muted">{apt.institutionName}</div>
+                      </td>
+                      <td>
                         <div style={{ fontWeight: 600 }}>{apt.doctorName}</div>
-                        <div className="text-xs text-muted">{apt.chamberName}</div>
                       </td>
                       <td>
                         <div>{apt.appointmentDate}</div>
@@ -419,8 +476,8 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         </div>
       )}
 
-      {/* 2. DIAGNOSTIC STAFF VIEW: Orders Pipeline with Test-wise Filtering */}
-      {staffType === 'diagnostic_staff' && staffTab === 'queue' && (
+      {/* 2. DIAGNOSTIC LAB TECH / HOSPITAL LAB DESK VIEW */}
+      {(staffTab === 'queue' && (staffTaskType === 'lab_desk' || (staffType === 'diagnostic_staff' && currentUser.staffTaskType === 'lab_desk'))) && (
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
@@ -428,7 +485,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                 All Orders ({diagnosticOrders.length})
               </button>
               <button className={`tab-btn ${timeFilter === 'today' ? 'active' : ''}`} onClick={() => setTimeFilter('today')}>
-                Today's Orders ({diagnosticOrders.filter((o) => o.scheduledDate === todayStr).length})
+                Today's Samples ({diagnosticOrders.filter((o) => o.scheduledDate === todayStr).length})
               </button>
               <button className={`tab-btn ${timeFilter === 'upcoming' ? 'active' : ''}`} onClick={() => setTimeFilter('upcoming')}>
                 Pending
@@ -533,12 +590,12 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         </div>
       )}
 
-      {/* 3. STAFF TEAM & ASSIGNMENTS CRUD (Individual Doctor Assistants vs Test Managers) */}
+      {/* 3. STAFF TEAM & ASSIGNMENTS */}
       {staffTab === 'staff_team' && (
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Staff Team & Operational Roles</h2>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Staff Team & Chamber Roles</h2>
               <p className="text-xs text-muted">Manage individual staff for specific doctors and separate staff for laboratory tests</p>
             </div>
             <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddStaff}>
@@ -552,7 +609,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                 <tr>
                   <th>Staff Name</th>
                   <th>Designation</th>
-                  <th>Operational Assignment</th>
+                  <th>Assigned Chamber / Role</th>
                   <th>Contact</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -571,7 +628,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <User size={14} color="var(--primary-800)" />
                           <span style={{ fontWeight: 600, color: 'var(--primary-800)' }}>
-                            Assigned to: {stf.assignedDoctorName || 'Doctor Chamber'}
+                            {stf.assignedChamberName || `Doctor Chamber: ${stf.assignedDoctorName}`}
                           </span>
                         </div>
                       ) : (
@@ -657,7 +714,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         </div>
       )}
 
-      {/* Staff Assignment Modal (Doctor Assistant vs Test Manager) */}
+      {/* Staff Assignment Modal */}
       <Modal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)} title={editingStaffId ? 'Edit Staff Member' : 'Assign New Staff Member'}>
         <form onSubmit={handleSaveStaff}>
           <div className="form-group">
@@ -678,7 +735,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
                     setStaffDesignation('Receptionist');
                   }}
                 />
-                Individual Doctor Assistant
+                Individual Doctor Chamber Assistant
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
                 <input
@@ -736,7 +793,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         isOpen={isManualBookingOpen}
         onClose={() => setIsManualBookingOpen(false)}
         fixedDoctorId={staffType === 'doctor_staff' ? assignedDoctorId : undefined}
-        fixedLocationId={staffType === 'hospital_staff' ? 'LOC-001' : staffType === 'diagnostic_staff' ? 'LOC-002' : undefined}
+        fixedLocationId={assignedLocationId || (staffType === 'hospital_staff' ? 'LOC-001' : staffType === 'diagnostic_staff' ? 'LOC-002' : undefined)}
         onSuccess={() => refetchAppointments()}
       />
     </div>
