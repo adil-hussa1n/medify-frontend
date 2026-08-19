@@ -281,17 +281,14 @@ export const Header: React.FC = () => {
                       textTransform: 'uppercase',
                     }}
                   >
-                    Switch Active Persona
+                    Switch Persona Role
                   </div>
                   {(
                     [
                       'patient',
                       'doctor',
-                      'doctor_staff',
                       'hospital',
-                      'hospital_staff',
                       'diagnostic',
-                      'diagnostic_staff',
                       'admin',
                     ] as UserRole[]
                   ).map((role) => (
@@ -305,7 +302,7 @@ export const Header: React.FC = () => {
                       style={{
                         width: '100%',
                         textAlign: 'left',
-                        padding: '0.5rem 0.75rem',
+                        padding: '0.45rem 0.65rem',
                         borderRadius: 'var(--radius-sm)',
                         fontSize: '0.8125rem',
                         color: currentUser.role === role ? 'var(--primary-800)' : 'var(--slate-700)',
@@ -320,6 +317,176 @@ export const Header: React.FC = () => {
                       {currentUser.role === role && <CheckCircle size={15} color="var(--primary-800)" />}
                     </button>
                   ))}
+
+                  {/* Task-Based Staff Switcher Options */}
+                  <div
+                    style={{
+                      padding: '0.45rem 0.5rem 0.25rem',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      color: 'var(--primary-800)',
+                      textTransform: 'uppercase',
+                      borderTop: '1px solid var(--slate-100)',
+                      marginTop: '0.35rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <Users size={12} />
+                    <span>Switch Staff by Assigned Task</span>
+                  </div>
+
+                  {/* 1. Doctor Chamber Staff Tasks */}
+                  <div style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--slate-400)' }}>
+                    Doctor Assistants
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Switch to Chamber 204 Assistant
+                      switchRole('doctor_staff');
+                      setRoleSwitcherOpen(false);
+                      navigate('/doctor-staff');
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: currentUser.role === 'doctor_staff' ? 'var(--primary-800)' : 'var(--slate-700)',
+                      fontWeight: currentUser.role === 'doctor_staff' ? 700 : 500,
+                      backgroundColor: currentUser.role === 'doctor_staff' ? 'var(--primary-50)' : 'transparent',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>🩺 Dr. Rahman — Chamber 204</span>
+                    {currentUser.role === 'doctor_staff' && <CheckCircle size={13} color="var(--primary-800)" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      switchRole('doctor_staff');
+                      setRoleSwitcherOpen(false);
+                      navigate('/doctor-staff');
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: 'var(--slate-700)',
+                      fontWeight: 500,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>🩺 Dr. Rahman — Private Chamber</span>
+                  </button>
+
+                  {/* 2. Hospital Staff Tasks */}
+                  <div style={{ padding: '0.3rem 0.5rem 0.1rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--slate-400)' }}>
+                    Hospital Staff Tasks
+                  </div>
+                  <button
+                    onClick={() => {
+                      switchRole('hospital_staff');
+                      setRoleSwitcherOpen(false);
+                      navigate('/hospital-staff');
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: currentUser.role === 'hospital_staff' ? 'var(--primary-800)' : 'var(--slate-700)',
+                      fontWeight: currentUser.role === 'hospital_staff' ? 700 : 500,
+                      backgroundColor: currentUser.role === 'hospital_staff' ? 'var(--primary-50)' : 'transparent',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>🏥 Ibn Sina — Doctor Chambers Desk</span>
+                    {currentUser.role === 'hospital_staff' && <CheckCircle size={13} color="var(--primary-800)" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      switchRole('hospital_staff');
+                      setRoleSwitcherOpen(false);
+                      navigate('/hospital-staff');
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: 'var(--slate-700)',
+                      fontWeight: 500,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>🏥 Ibn Sina — Lab & Tests Desk</span>
+                  </button>
+
+                  {/* 3. Diagnostic Staff Tasks */}
+                  <div style={{ padding: '0.3rem 0.5rem 0.1rem', fontSize: '0.65rem', fontWeight: 700, color: 'var(--slate-400)' }}>
+                    Diagnostic Center Tasks
+                  </div>
+                  <button
+                    onClick={() => {
+                      switchRole('diagnostic_staff');
+                      setRoleSwitcherOpen(false);
+                      navigate('/diagnostic-staff');
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: currentUser.role === 'diagnostic_staff' ? 'var(--accent-700)' : 'var(--slate-700)',
+                      fontWeight: currentUser.role === 'diagnostic_staff' ? 700 : 500,
+                      backgroundColor: currentUser.role === 'diagnostic_staff' ? 'var(--accent-50)' : 'transparent',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>🧪 Lab Aid — Pathology Lab Tech</span>
+                    {currentUser.role === 'diagnostic_staff' && <CheckCircle size={13} color="var(--accent-700)" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      switchRole('diagnostic_staff');
+                      setRoleSwitcherOpen(false);
+                      navigate('/diagnostic-staff');
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: 'var(--slate-700)',
+                      fontWeight: 500,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span>🧪 Lab Aid — Visiting Doctor Chamber Desk</span>
+                  </button>
 
                   <div
                     style={{
@@ -340,7 +507,7 @@ export const Header: React.FC = () => {
                     style={{
                       width: '100%',
                       textAlign: 'left',
-                      padding: '0.5rem 0.75rem',
+                      padding: '0.45rem 0.65rem',
                       borderRadius: 'var(--radius-sm)',
                       fontSize: '0.8125rem',
                       color: 'var(--primary-800)',
