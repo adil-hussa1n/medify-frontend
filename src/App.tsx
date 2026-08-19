@@ -94,7 +94,7 @@ function App() {
                 {/* Diagnostic Center Routes */}
                 <Route path="/diagnostic" element={<DiagnosticDashboardPage />} />
                 <Route path="/diagnostic/orders" element={<DiagnosticDashboardPage />} />
-                <Route path="/diagnostic-staff" element={<DiagnosticDashboardPage />} />
+                <Route path="/diagnostic-staff" element={<StaffDashboardPage staffType="diagnostic_staff" />} />
 
                 {/* Profile Routes for all users */}
                 {/* Super Admin Routes */}
