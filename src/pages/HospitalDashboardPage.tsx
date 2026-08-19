@@ -3,9 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { useAppointments, useDoctors, useStaff, useDiagnosticTests, useUpdateAppointmentStatus, useRecordPayment, useCreateDiagnosticTest } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Building2, Plus, User, FileText, Edit, Trash2, Search, RotateCcw, Calendar, Filter } from 'lucide-react';
+import { Building2, Plus, User, FileText, Edit, Trash2, Search, RotateCcw, Calendar, Filter, Users, Stethoscope } from 'lucide-react';
 import type { AppointmentStatus } from '../types';
 import { Link } from 'react-router-dom';
+import { mockStaff } from '../api/mock/data';
 
 export const HospitalDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -14,12 +15,13 @@ export const HospitalDashboardPage: React.FC = () => {
   const { data: appointments = [], refetch } = useAppointments({ institutionId: hospitalId });
   const { data: allDoctors = [], refetch: refetchDoctors } = useDoctors();
   const { data: allTests = [], refetch: refetchTests } = useDiagnosticTests();
+  const { data: staffList = [], refetch: refetchStaff } = useStaff({ institutionId: hospitalId });
 
   const updateStatusMutation = useUpdateAppointmentStatus();
   const recordPaymentMutation = useRecordPayment();
   const createTestMutation = useCreateDiagnosticTest();
 
-  const [activeTab, setActiveTab] = useState<'queue' | 'doctors' | 'tests'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'doctors' | 'tests' | 'staff'>('queue');
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
 
   // Filters
@@ -48,6 +50,14 @@ export const HospitalDashboardPage: React.FC = () => {
   const [testPrice, setTestPrice] = useState(500);
   const [testSample, setTestSample] = useState('Whole Blood (EDTA)');
 
+  // Staff CRUD State (Doctor Assistant vs In-House Lab Staff)
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [staffName, setStaffName] = useState('');
+  const [staffRoleType, setStaffRoleType] = useState<'doctor_assistant' | 'test_manager'>('doctor_assistant');
+  const [staffDesignation, setStaffDesignation] = useState<'Receptionist' | 'Lab Technician' | 'Manager'>('Receptionist');
+  const [staffDoctorAssignment, setStaffDoctorAssignment] = useState<string>('DOC-001');
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   const hospitalDoctors = allDoctors.filter((d) =>
@@ -60,30 +70,15 @@ export const HospitalDashboardPage: React.FC = () => {
 
   // Filtered Queue (Doctor-wise, Date-wise, Status-wise)
   const filteredAppointments = appointments.filter((a) => {
-    // 1. Doctor-wise Filter
-    if (selectedDoctorFilter !== 'all' && a.doctorId !== selectedDoctorFilter) {
-      return false;
-    }
-
-    // 2. Search Query
+    if (selectedDoctorFilter !== 'all' && a.doctorId !== selectedDoctorFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!a.patientName.toLowerCase().includes(q) && !a.doctorName.toLowerCase().includes(q) && !String(a.serialNumber).includes(q)) {
         return false;
       }
     }
-
-    // 3. Status Filter
-    if (selectedStatusFilter !== 'all' && a.status !== selectedStatusFilter) {
-      return false;
-    }
-
-    // 4. Exact Date Filter
-    if (dateFilter && a.appointmentDate !== dateFilter) {
-      return false;
-    }
-
-    // 5. Time Range Filter
+    if (selectedStatusFilter !== 'all' && a.status !== selectedStatusFilter) return false;
+    if (dateFilter && a.appointmentDate !== dateFilter) return false;
     if (timeFilter === 'today' && a.appointmentDate !== todayStr) return false;
     if (timeFilter === 'upcoming' && (a.appointmentDate < todayStr || a.status === 'completed')) return false;
     if (timeFilter === 'past' && (a.appointmentDate >= todayStr && a.status !== 'completed')) return false;
@@ -242,6 +237,70 @@ export const HospitalDashboardPage: React.FC = () => {
     }
   };
 
+  // Staff CRUD handlers
+  const handleOpenAddStaff = () => {
+    setEditingStaffId(null);
+    setStaffName('');
+    setStaffRoleType('doctor_assistant');
+    setStaffDesignation('Receptionist');
+    setStaffDoctorAssignment(hospitalDoctors[0]?.id || 'DOC-001');
+    setIsStaffModalOpen(true);
+  };
+
+  const handleOpenEditStaff = (stf: any) => {
+    setEditingStaffId(stf.id);
+    setStaffName(stf.name);
+    setStaffRoleType(stf.assignedDoctorId ? 'doctor_assistant' : 'test_manager');
+    setStaffDesignation(stf.designation);
+    setStaffDoctorAssignment(stf.assignedDoctorId || hospitalDoctors[0]?.id || 'DOC-001');
+    setIsStaffModalOpen(true);
+  };
+
+  const handleSaveStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    const docObj = allDoctors.find((d) => d.id === staffDoctorAssignment);
+
+    if (editingStaffId) {
+      const target = mockStaff.find((s) => s.id === editingStaffId);
+      if (target) {
+        target.name = staffName;
+        target.designation = staffDesignation;
+        if (staffRoleType === 'doctor_assistant') {
+          target.assignedDoctorId = staffDoctorAssignment;
+          target.assignedDoctorName = docObj?.name;
+        } else {
+          target.assignedDoctorId = undefined;
+          target.assignedDoctorName = undefined;
+        }
+      }
+    } else {
+      mockStaff.unshift({
+        id: `STF-00${mockStaff.length + 1}`,
+        userId: `USR-HSTF-00${mockStaff.length + 1}`,
+        name: staffName,
+        email: `${staffName.toLowerCase().replace(/[^a-z]/g, '')}@medify247.com`,
+        phone: '+880 1811 000555',
+        role: 'hospital_staff',
+        designation: staffDesignation,
+        institutionId: hospitalId,
+        institutionName: 'Ibn Sina Specialized Hospital',
+        assignedDoctorId: staffRoleType === 'doctor_assistant' ? staffDoctorAssignment : undefined,
+        assignedDoctorName: staffRoleType === 'doctor_assistant' ? docObj?.name : undefined,
+        status: 'active',
+      });
+    }
+    setIsStaffModalOpen(false);
+    refetchStaff();
+  };
+
+  const handleDeleteStaff = (id: string) => {
+    if (window.confirm('Delete this staff member from hospital team?')) {
+      const idx = mockStaff.findIndex((s) => s.id === id);
+      if (idx !== -1) mockStaff.splice(idx, 1);
+      refetchStaff();
+    }
+  };
+
   const handleResetFilters = () => {
     setTimeFilter('today');
     setDateFilter('');
@@ -261,7 +320,7 @@ export const HospitalDashboardPage: React.FC = () => {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Ibn Sina Specialized Hospital Portal</h1>
           </div>
           <p className="text-muted text-xs" style={{ marginTop: '0.15rem' }}>
-            Hospital Administration • Doctor-Wise & Test-Wise Queue Filtering & Full CRUD
+            Hospital Administration • Doctor-Wise & Test-Wise Queue Filtering, Tests & Staff Management CRUD
           </p>
         </div>
 
@@ -272,8 +331,8 @@ export const HospitalDashboardPage: React.FC = () => {
           <Button variant="secondary" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddDoctor}>
             Add Doctor
           </Button>
-          <Button variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddTest}>
-            Add Test
+          <Button variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddStaff}>
+            Add Staff
           </Button>
         </div>
       </div>
@@ -293,8 +352,8 @@ export const HospitalDashboardPage: React.FC = () => {
           <strong style={{ fontSize: '1.35rem', color: 'var(--primary-800)' }}>{appointments.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Chambers</span>
-          <strong style={{ fontSize: '1.35rem', color: 'var(--success-600)' }}>24</strong>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Hospital Staff</span>
+          <strong style={{ fontSize: '1.35rem', color: 'var(--success-600)' }}>{staffList.length}</strong>
         </div>
       </div>
 
@@ -308,6 +367,9 @@ export const HospitalDashboardPage: React.FC = () => {
         </button>
         <button className={`tab-btn ${activeTab === 'tests' ? 'active' : ''}`} onClick={() => setActiveTab('tests')}>
           In-House Diagnostic Tests ({hospitalTests.length || 4})
+        </button>
+        <button className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`} onClick={() => setActiveTab('staff')}>
+          Staff Management ({staffList.length})
         </button>
       </div>
 
@@ -542,6 +604,76 @@ export const HospitalDashboardPage: React.FC = () => {
         </div>
       )}
 
+      {/* Tab 4: Hospital Staff Management (Doctor Assistants vs In-House Tests Staff) */}
+      {activeTab === 'staff' && (
+        <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Hospital Staff & Assistant Team</h2>
+              <p className="text-xs text-muted">Manage staff assigned to specific doctor chambers and separate laboratory test staff</p>
+            </div>
+            <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddStaff}>
+              Assign New Staff
+            </Button>
+          </div>
+
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Staff Name</th>
+                  <th>Designation</th>
+                  <th>Operational Scope</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffList.map((stf) => (
+                  <tr key={stf.id}>
+                    <td>
+                      <strong>{stf.name}</strong>
+                      <div className="text-xs text-muted">{stf.email}</div>
+                    </td>
+                    <td><span className="badge badge-slate">{stf.designation}</span></td>
+                    <td>
+                      {stf.assignedDoctorId ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <User size={14} color="var(--primary-800)" />
+                          <span style={{ fontWeight: 600, color: 'var(--primary-800)' }}>
+                            Doctor Chamber: {stf.assignedDoctorName || 'Assigned Doctor'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Stethoscope size={14} color="var(--accent-600)" />
+                          <span style={{ fontWeight: 600, color: 'var(--accent-700)' }}>
+                            Hospital Lab & Tests Desk
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    <td><span className="text-xs">{stf.phone}</span></td>
+                    <td><span className="badge badge-success">Active</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <Button size="sm" variant="outline" onClick={() => handleOpenEditStaff(stf)}>
+                          <Edit size={13} />
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDeleteStaff(stf.id)}>
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Doctor Modal */}
       <Modal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} title={editingDoctorId ? 'Edit Doctor Chamber' : 'Add Doctor to Hospital Roster'}>
         <form onSubmit={handleSaveDoctor}>
@@ -590,6 +722,80 @@ export const HospitalDashboardPage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
             <Button type="button" variant="outline" onClick={() => setIsTestModalOpen(false)}>Cancel</Button>
             <Button type="submit" variant="primary">{editingTestId ? 'Save Changes' : 'Add Test'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Staff Assignment Modal */}
+      <Modal isOpen={isStaffModalOpen} onClose={() => setIsStaffModalOpen(false)} title={editingStaffId ? 'Edit Staff Member' : 'Assign Hospital Staff Member'}>
+        <form onSubmit={handleSaveStaff}>
+          <div className="form-group">
+            <label className="form-label">Staff Full Name *</label>
+            <input type="text" required placeholder="e.g. Kamal Hossain" className="form-input" value={staffName} onChange={(e) => setStaffName(e.target.value)} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Staff Role Type *</label>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.35rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="radio"
+                  name="hospStaffType"
+                  checked={staffRoleType === 'doctor_assistant'}
+                  onChange={() => {
+                    setStaffRoleType('doctor_assistant');
+                    setStaffDesignation('Receptionist');
+                  }}
+                />
+                Individual Doctor Chamber Assistant
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input
+                  type="radio"
+                  name="hospStaffType"
+                  checked={staffRoleType === 'test_manager'}
+                  onChange={() => {
+                    setStaffRoleType('test_manager');
+                    setStaffDesignation('Lab Technician');
+                  }}
+                />
+                In-House Lab & Tests Manager
+              </label>
+            </div>
+          </div>
+
+          {staffRoleType === 'doctor_assistant' ? (
+            <div className="form-group">
+              <label className="form-label">Assign to Hospital Doctor *</label>
+              <select
+                className="form-select"
+                value={staffDoctorAssignment}
+                onChange={(e) => setStaffDoctorAssignment(e.target.value)}
+              >
+                {hospitalDoctors.map((doc) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.name} ({doc.specialization})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="form-group">
+              <label className="form-label">Laboratory Designation</label>
+              <select
+                className="form-select"
+                value={staffDesignation}
+                onChange={(e) => setStaffDesignation(e.target.value as any)}
+              >
+                <option value="Lab Technician">Lab Technician (Pathology)</option>
+                <option value="Manager">Laboratory Floor Manager</option>
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+            <Button type="button" variant="outline" onClick={() => setIsStaffModalOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="primary">{editingStaffId ? 'Save Changes' : 'Assign Staff'}</Button>
           </div>
         </form>
       </Modal>
