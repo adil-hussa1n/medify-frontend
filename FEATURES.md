@@ -2,6 +2,8 @@
 
 **Medify 24/7** is an integrated digital healthcare ecosystem connecting patients, doctors, hospitals, diagnostic centers, staff members, and platform administrators.
 
+![Medify 24/7 Platform Ecosystem Overview](public/assets/medify_ecosystem_overview.jpg)
+
 ---
 
 ## 🌟 1. Public Discovery & Patient Experience
