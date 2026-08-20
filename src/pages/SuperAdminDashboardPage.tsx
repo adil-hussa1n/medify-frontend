@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { useDoctors, useHospitals, useDiagnosticCenters, useAuditLogs } from '../hooks/useHealthcare';
+import { useDoctors, useHospitals, useDiagnosticCenters, useAuditLogs, useAppointments, useDiagnosticOrders } from '../hooks/useHealthcare';
 import { Button, Modal } from '../components/ui/Core';
-import { Shield, Plus, Edit, Trash2, CheckCircle2, Search, Building2, Stethoscope, User, Calendar, Activity } from 'lucide-react';
+import { Shield, Plus, Edit, Trash2, CheckCircle2, Search, Building2, Stethoscope, User, Calendar, Activity, DollarSign, Receipt, TrendingUp, Layers, Filter } from 'lucide-react';
 import { doctorApi, hospitalApi, diagnosticCenterApi } from '../api';
+import { FinancialReportView, FinancialItem } from '../components/domain/FinancialReportView';
 
 export const SuperAdminDashboardPage: React.FC = () => {
   const { data: doctors = [], refetch: refetchDoctors } = useDoctors();
   const { data: hospitals = [], refetch: refetchHospitals } = useHospitals();
   const { data: diagnosticCenters = [], refetch: refetchCenters } = useDiagnosticCenters();
   const { data: auditLogs = [] } = useAuditLogs();
+  const { data: appointments = [] } = useAppointments();
+  const { data: diagnosticOrders = [] } = useDiagnosticOrders();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'doctors' | 'hospitals' | 'diagnostic' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'doctors' | 'hospitals' | 'diagnostic' | 'audit' | 'financials'>('overview');
+  const [finScopeFilter, setFinScopeFilter] = useState<'all' | 'doctors' | 'hospitals' | 'diagnostic'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // 1. Create/Edit Doctor Modal
@@ -245,6 +249,14 @@ export const SuperAdminDashboardPage: React.FC = () => {
           </button>
           <button className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
             Audit Logs
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'financials' ? 'active' : ''}`}
+            onClick={() => setActiveTab('financials')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <DollarSign size={14} />
+            Financial Report & Medify Profit
           </button>
         </div>
 
@@ -531,6 +543,121 @@ export const SuperAdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 5. SUPER ADMIN FINANCIAL REPORT & MEDIFY PROFIT TAB */}
+      {activeTab === 'financials' && (() => {
+        // Transform appointments into FinancialItem format
+        const appointmentFinancials: FinancialItem[] = appointments.map((apt) => ({
+          id: apt.id,
+          type: apt.locationType === 'hospital' ? 'hospital_opd' : 'doctor_appointment',
+          title: `Consultation (${apt.doctorName} • ${apt.doctorSpecialization})`,
+          patientName: apt.patientName,
+          patientPhone: apt.patientPhone,
+          referenceNo: `#${apt.serialNumber} • ${apt.id}`,
+          date: apt.appointmentDate,
+          grossAmount: apt.consultationFee || 0,
+          medifyFee: 20,
+          netAmount: Math.max(0, (apt.consultationFee || 0) - 20),
+          paymentStatus: apt.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+          paymentMethod: apt.paymentMethod,
+          chamberOrDept: apt.chamberName || apt.institutionName || 'Doctor Chamber',
+          doctorName: apt.doctorName,
+          category: apt.locationType === 'hospital' ? 'hospital' : apt.locationType === 'diagnostic_center' ? 'diagnostic' : 'doctor',
+        }));
+
+        // Transform diagnostic orders into FinancialItem format
+        const diagnosticFinancials: FinancialItem[] = diagnosticOrders.map((ord) => ({
+          id: ord.id,
+          type: 'diagnostic_test',
+          title: `Lab Test: ${ord.testName}`,
+          patientName: ord.patientName,
+          patientPhone: ord.patientPhone,
+          referenceNo: ord.orderNumber,
+          date: ord.scheduledDate,
+          grossAmount: ord.testPrice || 0,
+          medifyFee: 20,
+          netAmount: Math.max(0, (ord.testPrice || 0) - 20),
+          paymentStatus: ord.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+          paymentMethod: ord.paymentMethod,
+          chamberOrDept: ord.centerName || 'Diagnostic Center',
+          category: 'diagnostic',
+        }));
+
+        const allPlatformFinancials = [...appointmentFinancials, ...diagnosticFinancials];
+
+        // Filter by selected Super Admin Scope
+        const scopedItems = allPlatformFinancials.filter((item) => {
+          if (finScopeFilter === 'doctors') return item.category === 'doctor';
+          if (finScopeFilter === 'hospitals') return item.category === 'hospital';
+          if (finScopeFilter === 'diagnostic') return item.category === 'diagnostic';
+          return true;
+        });
+
+        const doctorCount = allPlatformFinancials.filter((i) => i.category === 'doctor').length;
+        const hospitalCount = allPlatformFinancials.filter((i) => i.category === 'hospital').length;
+        const diagnosticCount = allPlatformFinancials.filter((i) => i.category === 'diagnostic').length;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem' }}>
+            {/* Super Admin Financial Entity Scope Switcher */}
+            <div className="card" style={{ padding: '1rem', backgroundColor: 'var(--slate-50)', border: '1px solid var(--slate-200)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Layers size={16} color="var(--primary-800)" />
+                    Platform Financial Scope Breakdown
+                  </h3>
+                  <p className="text-xs text-muted">Toggle between unified ecosystem collections or inspect individual sector performance.</p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    className={`btn btn-sm ${finScopeFilter === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setFinScopeFilter('all')}
+                  >
+                    🌐 All Platform ({allPlatformFinancials.length})
+                  </button>
+                  <button
+                    className={`btn btn-sm ${finScopeFilter === 'doctors' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setFinScopeFilter('doctors')}
+                  >
+                    🩺 Doctor Chambers ({doctorCount})
+                  </button>
+                  <button
+                    className={`btn btn-sm ${finScopeFilter === 'hospitals' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setFinScopeFilter('hospitals')}
+                  >
+                    🏥 Partner Hospitals ({hospitalCount})
+                  </button>
+                  <button
+                    className={`btn btn-sm ${finScopeFilter === 'diagnostic' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setFinScopeFilter('diagnostic')}
+                  >
+                    🔬 Diagnostic Centers ({diagnosticCount})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Reusable Financial Report with Multi-Filtering & Medify ৳20 Commission */}
+            <FinancialReportView
+              title={
+                finScopeFilter === 'all'
+                  ? 'Super Admin Unified Platform Financial Report'
+                  : finScopeFilter === 'doctors'
+                  ? 'Doctor Chambers & Private Practice Collections'
+                  : finScopeFilter === 'hospitals'
+                  ? 'Partner Hospitals Financial Statement'
+                  : 'Diagnostic & Pathology Centers Financial Statement'
+              }
+              subtitle={`Ecosystem transaction volume, ৳20 platform commission charges, and institutional payouts.`}
+              tenantName="Medify 24/7 Platform Ecosystem"
+              tenantType="superadmin"
+              items={scopedItems}
+            />
+          </div>
+        );
+      })()}
 
       {/* Doctor Modal (Create & Edit) */}
       <Modal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} title={editingDoctorId ? 'Edit Doctor Profile' : 'Direct Create Doctor'}>

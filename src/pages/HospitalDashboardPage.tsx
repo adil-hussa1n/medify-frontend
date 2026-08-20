@@ -1,12 +1,44 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useAppointments, useDoctors, useStaff, useDiagnosticTests, useUpdateAppointmentStatus, useRecordPayment, useCreateDiagnosticTest } from '../hooks/useHealthcare';
+import {
+  useAppointments,
+  useDoctors,
+  useStaff,
+  useDiagnosticTests,
+  useDiagnosticOrders,
+  useUpdateAppointmentStatus,
+  useUpdateDiagnosticOrderStatus,
+  useRecordPayment,
+  useCreateDiagnosticTest,
+} from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Building2, Plus, User, FileText, Edit, Trash2, Search, RotateCcw, Calendar, Filter, Users, Stethoscope } from 'lucide-react';
-import type { AppointmentStatus } from '../types';
+import { ManualLabOrderModal } from '../components/domain/ManualLabOrderModal';
+import {
+  Building2,
+  Plus,
+  User,
+  FileText,
+  Edit,
+  Trash2,
+  Search,
+  RotateCcw,
+  Calendar,
+  Filter,
+  Users,
+  Stethoscope,
+  DollarSign,
+  Receipt,
+  Upload,
+  CheckCircle2,
+  Activity,
+  ClipboardList,
+  FlaskConical
+} from 'lucide-react';
+import type { AppointmentStatus, DiagnosticOrderStatus } from '../types';
 import { Link } from 'react-router-dom';
 import { mockStaff } from '../api/mock/data';
+import { FinancialReportView, FinancialItem } from '../components/domain/FinancialReportView';
 
 export const HospitalDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -15,24 +47,33 @@ export const HospitalDashboardPage: React.FC = () => {
   const { data: appointments = [], refetch } = useAppointments({ institutionId: hospitalId });
   const { data: allDoctors = [], refetch: refetchDoctors } = useDoctors();
   const { data: allTests = [], refetch: refetchTests } = useDiagnosticTests();
+  const { data: diagnosticOrders = [], refetch: refetchOrders } = useDiagnosticOrders({ centerId: hospitalId });
   const { data: staffList = [], refetch: refetchStaff } = useStaff({ institutionId: hospitalId });
 
   const updateStatusMutation = useUpdateAppointmentStatus();
+  const updateOrderStatusMutation = useUpdateDiagnosticOrderStatus();
   const recordPaymentMutation = useRecordPayment();
   const createTestMutation = useCreateDiagnosticTest();
 
-  const [activeTab, setActiveTab] = useState<'queue' | 'doctors' | 'tests' | 'staff'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'doctors' | 'tests' | 'staff' | 'financials'>('queue');
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
+  const [isManualLabOrderOpen, setIsManualLabOrderOpen] = useState(false);
 
-  // Filters
+  // Filters for OPD Queue
   const [timeFilter, setTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('today');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('all'); // Doctor-wise filter
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Tests Tab Category Filter
+  // Tests Tab Sub-view (Live Test Queue vs Test Catalog)
+  const [testsSubTab, setTestsSubTab] = useState<'orders_queue' | 'catalog'>('orders_queue');
+  const [testTimeFilter, setTestTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('all');
+  const [testDateFilter, setTestDateFilter] = useState<string>('');
+  const [selectedTestStatusFilter, setSelectedTestStatusFilter] = useState<string>('all');
   const [selectedTestCategory, setSelectedTestCategory] = useState<string>('all');
+  const [testSearchQuery, setTestSearchQuery] = useState('');
+  const [uploadModalOrder, setUploadModalOrder] = useState<any | null>(null);
 
   // Doctor CRUD State
   const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false);
@@ -103,6 +144,52 @@ export const HospitalDashboardPage: React.FC = () => {
 
     await updateStatusMutation.mutateAsync({ id, status: next });
     refetch();
+  };
+
+  // Filtered Hospital Test Orders (Queue)
+  const filteredHospitalOrders = diagnosticOrders.filter((o) => {
+    if (selectedTestCategory !== 'all' && o.testName !== selectedTestCategory) return false;
+    if (testSearchQuery) {
+      const q = testSearchQuery.toLowerCase();
+      if (!o.patientName.toLowerCase().includes(q) && !o.testName.toLowerCase().includes(q) && !o.orderNumber.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    if (selectedTestStatusFilter !== 'all' && o.status !== selectedTestStatusFilter) return false;
+    if (testDateFilter && o.scheduledDate !== testDateFilter) return false;
+    if (testTimeFilter === 'today' && o.scheduledDate !== todayStr) return false;
+    if (testTimeFilter === 'upcoming' && (o.scheduledDate < todayStr || o.status === 'report_ready')) return false;
+    if (testTimeFilter === 'past' && (o.scheduledDate >= todayStr && o.status !== 'report_ready')) return false;
+
+    return true;
+  });
+
+  const handleNextTestOrderStatus = async (id: string, currentStatus: DiagnosticOrderStatus) => {
+    let nextStatus: DiagnosticOrderStatus = 'report_ready';
+    if (currentStatus === 'booked') nextStatus = 'sample_collected';
+    else if (currentStatus === 'sample_collected') nextStatus = 'processing';
+    else if (currentStatus === 'processing') nextStatus = 'report_ready';
+
+    if (currentStatus === 'processing') {
+      const order = diagnosticOrders.find((o) => o.id === id);
+      setUploadModalOrder(order);
+      return;
+    }
+
+    await updateOrderStatusMutation.mutateAsync({ id, status: nextStatus });
+    refetchOrders();
+  };
+
+  const handleCompleteUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadModalOrder) return;
+    await updateOrderStatusMutation.mutateAsync({
+      id: uploadModalOrder.id,
+      status: 'report_ready',
+      reportUrl: `https://medify247.com/reports/${uploadModalOrder.orderNumber}.pdf`,
+    });
+    setUploadModalOrder(null);
+    refetchOrders();
   };
 
   const handleRecordPayment = async (id: string) => {
@@ -328,6 +415,9 @@ export const HospitalDashboardPage: React.FC = () => {
           <Button variant="primary" size="sm" leftIcon={<Plus size={15} />} onClick={() => setIsManualBookingOpen(true)}>
             Manual OPD Booking
           </Button>
+          <Button variant="accent" size="sm" leftIcon={<FlaskConical size={14} />} onClick={() => setIsManualLabOrderOpen(true)}>
+            Manual Lab Order
+          </Button>
           <Button variant="secondary" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddDoctor}>
             Add Doctor
           </Button>
@@ -370,6 +460,14 @@ export const HospitalDashboardPage: React.FC = () => {
         </button>
         <button className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`} onClick={() => setActiveTab('staff')}>
           Staff Management ({staffList.length})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'financials' ? 'active' : ''}`}
+          onClick={() => setActiveTab('financials')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <DollarSign size={14} />
+          Financial Report & Medify Profit
         </button>
       </div>
 
@@ -537,70 +635,245 @@ export const HospitalDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Hospital Diagnostic Tests CRUD & Category Filtering */}
+      {/* Tab 3: Hospital Diagnostic Tests Queue & Test Catalog Management */}
       {activeTab === 'tests' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>In-House Pathology & Diagnostic Tests</h2>
-              <p className="text-xs text-muted">Filter tests by category or manage laboratory investigation catalog</p>
+          {/* Sub-tab switcher: Live Test Orders Queue vs Test Catalog */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--slate-200)', paddingBottom: '0.85rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className={`btn btn-sm ${testsSubTab === 'orders_queue' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setTestsSubTab('orders_queue')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <ClipboardList size={14} />
+                Live Test Orders Queue ({diagnosticOrders.length})
+              </button>
+              <button
+                className={`btn btn-sm ${testsSubTab === 'catalog' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setTestsSubTab('catalog')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Activity size={14} />
+                In-House Test Catalog ({hospitalTests.length || 4})
+              </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <select
-                className="form-select"
-                style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
-                value={selectedTestCategory}
-                onChange={(e) => setSelectedTestCategory(e.target.value)}
-              >
-                <option value="all">All Categories ({hospitalTests.length || 4})</option>
-                <option value="Hematology">Hematology</option>
-                <option value="Biochemistry">Biochemistry</option>
-                <option value="Cardiology">Cardiology</option>
-                <option value="Radiology & Imaging">Radiology</option>
-              </select>
-
+            {testsSubTab === 'catalog' && (
               <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddTest}>
                 Add Test
               </Button>
-            </div>
+            )}
           </div>
 
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Test Name</th>
-                  <th>Category</th>
-                  <th>Sample Type</th>
-                  <th>Price (Cash)</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHospitalTests.map((t) => (
-                  <tr key={t.id}>
-                    <td><strong>{t.name}</strong></td>
-                    <td><span className="badge badge-slate">{t.category}</span></td>
-                    <td>{t.sampleType}</td>
-                    <td><strong style={{ color: 'var(--primary-800)' }}>৳{t.price}</strong></td>
-                    <td><span className="badge badge-success">Available</span></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        <Button size="sm" variant="outline" onClick={() => handleOpenEditTest(t)}>
-                          <Edit size={13} />
-                        </Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDeleteTest(t.id)}>
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    </td>
+          {/* SUB-VIEW 1: LIVE TEST ORDERS QUEUE */}
+          {testsSubTab === 'orders_queue' && (
+            <>
+              {/* Test Queue Filter Strip */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
+                  <button className={`tab-btn ${testTimeFilter === 'all' ? 'active' : ''}`} onClick={() => setTestTimeFilter('all')}>
+                    All Test Orders ({diagnosticOrders.length})
+                  </button>
+                  <button className={`tab-btn ${testTimeFilter === 'today' ? 'active' : ''}`} onClick={() => setTestTimeFilter('today')}>
+                    Today ({diagnosticOrders.filter((o) => o.scheduledDate === todayStr).length})
+                  </button>
+                  <button className={`tab-btn ${testTimeFilter === 'upcoming' ? 'active' : ''}`} onClick={() => setTestTimeFilter('upcoming')}>
+                    Pending / Active
+                  </button>
+                  <button className={`tab-btn ${testTimeFilter === 'past' ? 'active' : ''}`} onClick={() => setTestTimeFilter('past')}>
+                    Completed / Reports Ready
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Test-wise Filter Dropdown */}
+                  <select
+                    className="form-select"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', fontWeight: 600, color: 'var(--primary-800)', borderColor: 'var(--primary-300)' }}
+                    value={selectedTestCategory}
+                    onChange={(e) => setSelectedTestCategory(e.target.value)}
+                  >
+                    <option value="all">Filter by Test (All)</option>
+                    {hospitalTests.map((t) => (
+                      <option key={t.id} value={t.name}>
+                        {t.name} (৳{t.price})
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="date"
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', width: '135px' }}
+                    value={testDateFilter}
+                    onChange={(e) => setTestDateFilter(e.target.value)}
+                  />
+
+                  <select
+                    className="form-select"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
+                    value={selectedTestStatusFilter}
+                    onChange={(e) => setSelectedTestStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Pipeline Statuses</option>
+                    <option value="booked">Booked (Sample Pending)</option>
+                    <option value="sample_collected">Sample Collected</option>
+                    <option value="processing">In Analysis / Lab</option>
+                    <option value="report_ready">Report Ready & Signed</option>
+                  </select>
+
+                  <div style={{ position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} />
+                    <input
+                      type="text"
+                      placeholder="Search test or patient..."
+                      className="form-input"
+                      style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem 0.35rem 1.6rem', width: '180px' }}
+                      value={testSearchQuery}
+                      onChange={(e) => setTestSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  {(testDateFilter || selectedTestStatusFilter !== 'all' || selectedTestCategory !== 'all' || testTimeFilter !== 'all' || testSearchQuery) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setTestTimeFilter('all');
+                        setTestDateFilter('');
+                        setSelectedTestStatusFilter('all');
+                        setSelectedTestCategory('all');
+                        setTestSearchQuery('');
+                      }}
+                    >
+                      <RotateCcw size={13} />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Test Orders Table */}
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Order Ref</th>
+                      <th>Patient Details</th>
+                      <th>Diagnostic Test</th>
+                      <th>Schedule / Date</th>
+                      <th>Payment (Cash)</th>
+                      <th>Pipeline Status</th>
+                      <th>Queue Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredHospitalOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--slate-500)' }}>
+                          No hospital test bookings found for the selected filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredHospitalOrders.map((ord) => (
+                        <tr key={ord.id}>
+                          <td>
+                            <strong style={{ color: 'var(--accent-600)', fontSize: '0.85rem' }}>{ord.orderNumber}</strong>
+                            <div className="text-xs text-muted">{ord.bookingType === 'home_collection' ? '🏠 Home Collection' : '🏥 Hospital Walk-In'}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{ord.patientName}</div>
+                            <div className="text-xs text-muted">{ord.patientPhone}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--slate-900)' }}>{ord.testName}</div>
+                            <span className="badge badge-slate" style={{ fontSize: '0.7rem' }}>In-House Pathology</span>
+                          </td>
+                          <td>
+                            <div>{ord.scheduledDate}</div>
+                            <div className="text-xs text-muted">{ord.timeSlot}</div>
+                          </td>
+                          <td>
+                            {ord.paymentStatus === 'paid' ? (
+                              <span className="badge badge-success">৳{ord.testPrice} Paid</span>
+                            ) : (
+                              <span className="badge badge-warning">৳{ord.testPrice} Due</span>
+                            )}
+                          </td>
+                          <td>
+                            <StatusBadge status={ord.status} />
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                              {ord.status === 'booked' && (
+                                <Button size="sm" variant="accent" onClick={() => handleNextTestOrderStatus(ord.id, ord.status)}>
+                                  Collect Sample →
+                                </Button>
+                              )}
+                              {ord.status === 'sample_collected' && (
+                                <Button size="sm" variant="primary" onClick={() => handleNextTestOrderStatus(ord.id, ord.status)}>
+                                  Send to Lab →
+                                </Button>
+                              )}
+                              {ord.status === 'processing' && (
+                                <Button size="sm" variant="secondary" leftIcon={<Upload size={13} />} onClick={() => handleNextTestOrderStatus(ord.id, ord.status)}>
+                                  Upload PDF
+                                </Button>
+                              )}
+                              {ord.status === 'report_ready' && (
+                                <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                  <CheckCircle2 size={12} /> Ready
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* SUB-VIEW 2: IN-HOUSE TEST CATALOG & PRICING */}
+          {testsSubTab === 'catalog' && (
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Test Name</th>
+                    <th>Category</th>
+                    <th>Sample Type</th>
+                    <th>Price (Cash)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredHospitalTests.map((t) => (
+                    <tr key={t.id}>
+                      <td><strong>{t.name}</strong></td>
+                      <td><span className="badge badge-slate">{t.category}</span></td>
+                      <td>{t.sampleType}</td>
+                      <td><strong style={{ color: 'var(--primary-800)' }}>৳{t.price}</strong></td>
+                      <td><span className="badge badge-success">Available</span></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <Button size="sm" variant="outline" onClick={() => handleOpenEditTest(t)}>
+                            <Edit size={13} />
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => handleDeleteTest(t.id)}>
+                            <Trash2 size={13} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -673,6 +946,73 @@ export const HospitalDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* TAB 5: FINANCIAL REPORT & MEDIFY PROFIT */}
+      {activeTab === 'financials' && (
+        <FinancialReportView
+          title="Hospital Financial Statement & Medify Profit Report"
+          subtitle="OPD consultations, in-house diagnostics, fee settlement & platform commission ledger"
+          tenantName="Ibn Sina Specialized Hospital"
+          tenantType="hospital"
+          items={[
+            // Map OPD appointments
+            ...appointments.map((apt): FinancialItem => ({
+              id: apt.id,
+              type: 'hospital_opd',
+              title: `OPD: ${apt.doctorName} (${apt.doctorSpecialization})`,
+              patientName: apt.patientName,
+              patientPhone: apt.patientPhone,
+              referenceNo: `#${apt.serialNumber} • ${apt.id}`,
+              date: apt.appointmentDate,
+              grossAmount: apt.consultationFee || 0,
+              medifyFee: 20,
+              netAmount: (apt.consultationFee || 0) - 20,
+              paymentStatus: apt.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+              paymentMethod: apt.paymentMethod,
+              chamberOrDept: apt.chamberName || 'OPD Chamber',
+              doctorName: apt.doctorName,
+            })),
+            // Map In-House Diagnostic Test Orders
+            ...diagnosticOrders.map((ord): FinancialItem => ({
+              id: ord.id,
+              type: 'diagnostic_test',
+              title: `Lab Test: ${ord.testName}`,
+              patientName: ord.patientName,
+              patientPhone: ord.patientPhone,
+              referenceNo: ord.orderNumber,
+              date: ord.scheduledDate,
+              grossAmount: ord.testPrice || 0,
+              medifyFee: 20,
+              netAmount: (ord.testPrice || 0) - 20,
+              paymentStatus: ord.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+              paymentMethod: ord.paymentMethod,
+              chamberOrDept: 'In-House Pathology Lab',
+              category: ord.testName,
+            })),
+          ]}
+        />
+      )}
+
+      {/* PDF Upload Modal for Hospital Test Orders */}
+      <Modal isOpen={!!uploadModalOrder} onClose={() => setUploadModalOrder(null)} title="Sign & Upload Hospital Pathology Report">
+        <form onSubmit={handleCompleteUpload}>
+          <div style={{ padding: '1rem', backgroundColor: 'var(--primary-50)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{uploadModalOrder?.testName}</h4>
+            <p className="text-xs text-muted">Order #{uploadModalOrder?.orderNumber} • Patient: {uploadModalOrder?.patientName}</p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Attach Lab PDF Report (Auto-Attached)</label>
+            <div style={{ border: '2px dashed var(--slate-300)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
+              <Upload size={24} color="var(--primary-800)" style={{ margin: '0 auto 0.5rem' }} />
+              <p className="text-xs" style={{ fontWeight: 600 }}>Click or Drag PDF here to finalize hospital lab report</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+            <Button type="button" variant="outline" onClick={() => setUploadModalOrder(null)}>Cancel</Button>
+            <Button type="submit" variant="primary">Sign & Publish Report</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Doctor Modal */}
       <Modal isOpen={isDoctorModalOpen} onClose={() => setIsDoctorModalOpen(false)} title={editingDoctorId ? 'Edit Doctor Chamber' : 'Add Doctor to Hospital Roster'}>
@@ -805,6 +1145,14 @@ export const HospitalDashboardPage: React.FC = () => {
         onClose={() => setIsManualBookingOpen(false)}
         fixedLocationId="LOC-001"
         onSuccess={() => refetch()}
+      />
+
+      <ManualLabOrderModal
+        isOpen={isManualLabOrderOpen}
+        onClose={() => setIsManualLabOrderOpen(false)}
+        institutionId={hospitalId}
+        institutionName="Ibn Sina Specialized Hospital"
+        onSuccess={() => refetchOrders()}
       />
     </div>
   );

@@ -1,32 +1,51 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
+  useAppointments,
   useDiagnosticOrders,
   useDiagnosticTests,
   useDoctors,
   useStaff,
+  useUpdateAppointmentStatus,
   useUpdateDiagnosticOrderStatus,
+  useRecordPayment,
   useCreateDiagnosticTest,
 } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
-import { Stethoscope, Upload, CheckCircle2, Home, Building2, User, Plus, FileText, Activity, Edit, Trash2, RotateCcw, Calendar, Search, Users } from 'lucide-react';
-import type { DiagnosticOrderStatus } from '../types';
+import { ManualBookingModal } from '../components/domain/ManualBookingModal';
+import { ManualLabOrderModal } from '../components/domain/ManualLabOrderModal';
+import { Stethoscope, Upload, CheckCircle2, Home, Building2, User, Plus, FileText, Activity, Edit, Trash2, RotateCcw, Calendar, Search, Users, DollarSign, Receipt, FlaskConical, ClipboardList } from 'lucide-react';
+import type { AppointmentStatus, DiagnosticOrderStatus } from '../types';
 import { mockStaff } from '../api/mock/data';
+import { FinancialReportView, FinancialItem } from '../components/domain/FinancialReportView';
 
 export const DiagnosticDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
   const centerId = currentUser.diagnosticCenterId || 'DIAG-001';
 
+  const { data: appointments = [], refetch: refetchAppointments } = useAppointments({ institutionId: centerId });
   const { data: orders = [], refetch: refetchOrders } = useDiagnosticOrders({ centerId });
   const { data: tests = [], refetch: refetchTests } = useDiagnosticTests({ centerId });
   const { data: allDoctors = [], refetch: refetchDoctors } = useDoctors();
   const { data: staffList = [], refetch: refetchStaff } = useStaff({ institutionId: centerId });
 
+  const updateStatusMutation = useUpdateAppointmentStatus();
   const updateOrderStatusMutation = useUpdateDiagnosticOrderStatus();
+  const recordPaymentMutation = useRecordPayment();
   const createTestMutation = useCreateDiagnosticTest();
 
-  // Tab State: orders, tests, doctors, staff
-  const [activeTab, setActiveTab] = useState<'orders' | 'tests' | 'doctors' | 'staff'>('orders');
+  // Tab State: orders, tests, doctors, staff, financials
+  const [activeTab, setActiveTab] = useState<'orders' | 'tests' | 'doctors' | 'staff' | 'financials'>('orders');
+  const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
+  const [isManualLabOrderOpen, setIsManualLabOrderOpen] = useState(false);
+
+  // Doctors Sub Tab: 'queue' (Live Doctor Serials & Appointments) vs 'roster' (Doctor Roster Management)
+  const [doctorSubTab, setDoctorSubTab] = useState<'queue' | 'roster'>('queue');
+  const [docTimeFilter, setDocTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('today');
+  const [docDateFilter, setDocDateFilter] = useState<string>('');
+  const [docStatusFilter, setDocStatusFilter] = useState<string>('all');
+  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('all');
+  const [docSearchQuery, setDocSearchQuery] = useState('');
 
   // Order Filters
   const [timeFilter, setTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('all');
@@ -90,6 +109,40 @@ export const DiagnosticDashboardPage: React.FC = () => {
 
     return true;
   });
+
+  // Filtered Appointments (Doctor Serials & OPD Queue in Diagnostic Center)
+  const filteredAppointments = appointments.filter((a) => {
+    if (selectedDoctorFilter !== 'all' && a.doctorId !== selectedDoctorFilter) return false;
+    if (docSearchQuery) {
+      const q = docSearchQuery.toLowerCase();
+      if (!a.patientName.toLowerCase().includes(q) && !a.doctorName.toLowerCase().includes(q) && !String(a.serialNumber).includes(q)) {
+        return false;
+      }
+    }
+    if (docStatusFilter !== 'all' && a.status !== docStatusFilter) return false;
+    if (docDateFilter && a.appointmentDate !== docDateFilter) return false;
+    if (docTimeFilter === 'today' && a.appointmentDate !== todayStr) return false;
+    if (docTimeFilter === 'upcoming' && (a.appointmentDate < todayStr || a.status === 'completed')) return false;
+    if (docTimeFilter === 'past' && (a.appointmentDate >= todayStr && a.status !== 'completed')) return false;
+
+    return true;
+  });
+
+  const handleNextAppointmentStatus = async (id: string, currentStatus: AppointmentStatus) => {
+    let next: AppointmentStatus = 'completed';
+    if (currentStatus === 'booked') next = 'checked_in';
+    else if (currentStatus === 'checked_in') next = 'waiting';
+    else if (currentStatus === 'waiting') next = 'in_consultation';
+    else if (currentStatus === 'in_consultation') next = 'completed';
+
+    await updateStatusMutation.mutateAsync({ id, status: next });
+    refetchAppointments();
+  };
+
+  const handleRecordDoctorPayment = async (id: string) => {
+    await recordPaymentMutation.mutateAsync(id);
+    refetchAppointments();
+  };
 
   // Filtered Tests (Category-wise)
   const filteredTests = tests.filter((t) => {
@@ -347,7 +400,13 @@ export const DiagnosticDashboardPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Button variant="primary" size="sm" leftIcon={<Plus size={15} />} onClick={handleOpenAddTest}>
+          <Button variant="primary" size="sm" leftIcon={<FlaskConical size={15} />} onClick={() => setIsManualLabOrderOpen(true)}>
+            Manual Lab Order
+          </Button>
+          <Button variant="accent" size="sm" leftIcon={<User size={14} />} onClick={() => setIsManualBookingOpen(true)}>
+            Manual Doctor Serial
+          </Button>
+          <Button variant="outline" size="sm" leftIcon={<Plus size={15} />} onClick={handleOpenAddTest}>
             Add Test
           </Button>
           <Button variant="secondary" size="sm" leftIcon={<Plus size={14} />} onClick={handleOpenAddDoctor}>
@@ -362,12 +421,12 @@ export const DiagnosticDashboardPage: React.FC = () => {
       {/* Pipeline Status Summary */}
       <div className="grid grid-cols-4 gap-3" style={{ marginBottom: '1.5rem' }}>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Total Orders</span>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Total Lab Orders</span>
           <strong style={{ fontSize: '1.35rem', color: 'var(--slate-900)' }}>{orders.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
-          <span className="text-xs text-muted" style={{ display: 'block' }}>Chamber Doctors</span>
-          <strong style={{ fontSize: '1.35rem', color: 'var(--primary-800)' }}>{centerDoctors.length || 3}</strong>
+          <span className="text-xs text-muted" style={{ display: 'block' }}>Doctor Serials Queue</span>
+          <strong style={{ fontSize: '1.35rem', color: 'var(--primary-800)' }}>{appointments.length}</strong>
         </div>
         <div className="card" style={{ padding: '0.85rem' }}>
           <span className="text-xs text-muted" style={{ display: 'block' }}>Pathology Tests</span>
@@ -388,10 +447,18 @@ export const DiagnosticDashboardPage: React.FC = () => {
           Offered Pathology Tests ({tests.length})
         </button>
         <button className={`tab-btn ${activeTab === 'doctors' ? 'active' : ''}`} onClick={() => setActiveTab('doctors')}>
-          Visiting Chamber Doctors ({centerDoctors.length || 3})
+          Visiting Doctors & Live Serials ({appointments.length})
         </button>
         <button className={`tab-btn ${activeTab === 'staff' ? 'active' : ''}`} onClick={() => setActiveTab('staff')}>
           Staff Management ({staffList.length})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'financials' ? 'active' : ''}`}
+          onClick={() => setActiveTab('financials')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <DollarSign size={14} />
+          Financial Report & Medify Profit
         </button>
       </div>
 
@@ -604,41 +671,243 @@ export const DiagnosticDashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Chamber Doctors CRUD */}
+      {/* Tab 3: Visiting Chamber Doctors & Live Serial Queue */}
       {activeTab === 'doctors' && (
         <div className="card" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Visiting Chamber Doctors</h2>
-              <p className="text-xs text-muted">Specialist physicians holding daily consultation chambers</p>
+          {/* Sub-Tab Switcher: Live Doctor Serials Queue vs Visiting Doctor Roster */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid var(--slate-200)', paddingBottom: '0.85rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className={`btn btn-sm ${doctorSubTab === 'queue' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setDoctorSubTab('queue')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <ClipboardList size={14} />
+                Live Doctor Serials Queue ({appointments.length})
+              </button>
+              <button
+                className={`btn btn-sm ${doctorSubTab === 'roster' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setDoctorSubTab('roster')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <User size={14} />
+                Visiting Doctors Roster ({centerDoctors.length || 3})
+              </button>
             </div>
-            <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddDoctor}>
-              Add Doctor
-            </Button>
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button size="sm" variant="accent" leftIcon={<User size={14} />} onClick={() => setIsManualBookingOpen(true)}>
+                Manual Doctor Serial
+              </Button>
+              {doctorSubTab === 'roster' && (
+                <Button size="sm" variant="primary" leftIcon={<Plus size={14} />} onClick={handleOpenAddDoctor}>
+                  Add Doctor
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 md-grid-cols-2 sm-grid-cols-1 gap-3">
-            {(centerDoctors.length > 0 ? centerDoctors : allDoctors.slice(0, 3)).map((doc) => (
-              <div key={doc.id} className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.75rem', backgroundColor: 'var(--slate-50)' }}>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                  <img src={doc.photoUrl} alt={doc.name} style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', objectFit: 'cover' }} />
-                  <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{doc.name}</h4>
-                    <p style={{ color: 'var(--primary-700)', fontSize: '0.8rem', fontWeight: 600 }}>{doc.specialization}</p>
-                    <p className="text-xs text-muted">Chamber 4 • Fee: ৳700</p>
-                  </div>
+          {/* SUB-VIEW 1: LIVE DOCTOR SERIALS QUEUE */}
+          {doctorSubTab === 'queue' && (
+            <>
+              {/* Doctor Serial Filter Strip */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div className="tabs-nav" style={{ marginBottom: 0, borderBottom: 'none' }}>
+                  <button className={`tab-btn ${docTimeFilter === 'today' ? 'active' : ''}`} onClick={() => setDocTimeFilter('today')}>
+                    Today's Serials ({appointments.filter((a) => a.appointmentDate === todayStr).length})
+                  </button>
+                  <button className={`tab-btn ${docTimeFilter === 'upcoming' ? 'active' : ''}`} onClick={() => setDocTimeFilter('upcoming')}>
+                    Upcoming
+                  </button>
+                  <button className={`tab-btn ${docTimeFilter === 'past' ? 'active' : ''}`} onClick={() => setDocTimeFilter('past')}>
+                    Past
+                  </button>
+                  <button className={`tab-btn ${docTimeFilter === 'all' ? 'active' : ''}`} onClick={() => setDocTimeFilter('all')}>
+                    All Dates ({appointments.length})
+                  </button>
                 </div>
-                <div style={{ display: 'flex', gap: '0.35rem', borderTop: '1px solid var(--slate-200)', paddingTop: '0.5rem' }}>
-                  <Button size="sm" variant="outline" style={{ flex: 1 }} leftIcon={<Edit size={13} />} onClick={() => handleOpenEditDoctor(doc)}>
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="danger" leftIcon={<Trash2 size={13} />} onClick={() => handleDeleteDoctor(doc.id)}>
-                    Remove
-                  </Button>
+
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select
+                    className="form-select"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', fontWeight: 600, color: 'var(--primary-800)', borderColor: 'var(--primary-300)' }}
+                    value={selectedDoctorFilter}
+                    onChange={(e) => setSelectedDoctorFilter(e.target.value)}
+                  >
+                    <option value="all">Filter by Doctor (All)</option>
+                    {centerDoctors.map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.name} ({doc.specialization})
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="date"
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem', width: '135px' }}
+                    value={docDateFilter}
+                    onChange={(e) => setDocDateFilter(e.target.value)}
+                  />
+
+                  <select
+                    className="form-select"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem' }}
+                    value={docStatusFilter}
+                    onChange={(e) => setDocStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="booked">Booked</option>
+                    <option value="checked_in">Checked In</option>
+                    <option value="waiting">Waiting</option>
+                    <option value="in_consultation">In Consultation</option>
+                    <option value="completed">Completed</option>
+                  </select>
+
+                  <div style={{ position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-400)' }} />
+                    <input
+                      type="text"
+                      placeholder="Search patient or doctor..."
+                      className="form-input"
+                      style={{ fontSize: '0.8rem', padding: '0.35rem 0.5rem 0.35rem 1.6rem', width: '180px' }}
+                      value={docSearchQuery}
+                      onChange={(e) => setDocSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  {(docDateFilter || docStatusFilter !== 'all' || selectedDoctorFilter !== 'all' || docTimeFilter !== 'today' || docSearchQuery) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setDocTimeFilter('today');
+                        setDocDateFilter('');
+                        setDocStatusFilter('all');
+                        setSelectedDoctorFilter('all');
+                        setDocSearchQuery('');
+                      }}
+                    >
+                      <RotateCcw size={13} />
+                    </Button>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Doctor Appointments Queue Table */}
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Serial</th>
+                      <th>Patient</th>
+                      <th>Visiting Doctor & Chamber</th>
+                      <th>Date & Slot</th>
+                      <th>Consultation Fee</th>
+                      <th>Status</th>
+                      <th>Queue Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAppointments.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--slate-500)' }}>
+                          No visiting doctor serial bookings found for the selected filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredAppointments.map((apt) => (
+                        <tr key={apt.id}>
+                          <td>
+                            <strong style={{ fontSize: '1.15rem', color: 'var(--primary-800)' }}>#{apt.serialNumber}</strong>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{apt.patientName}</div>
+                            <div className="text-xs text-muted">{apt.patientPhone}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--slate-900)' }}>{apt.doctorName}</div>
+                            <span className="badge badge-slate" style={{ fontSize: '0.7rem' }}>
+                              {apt.chamberName || 'Consultation Floor'}
+                            </span>
+                          </td>
+                          <td>
+                            <div>{apt.appointmentDate}</div>
+                            <div className="text-xs text-muted">{apt.estimatedTime}</div>
+                          </td>
+                          <td>
+                            {apt.paymentStatus === 'paid' ? (
+                              <span className="badge badge-success">৳{apt.consultationFee} Paid</span>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => handleRecordDoctorPayment(apt.id)}>
+                                Collect ৳{apt.consultationFee}
+                              </Button>
+                            )}
+                          </td>
+                          <td>
+                            <StatusBadge status={apt.status} />
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                              {apt.status === 'booked' && (
+                                <Button size="sm" variant="accent" onClick={() => handleNextAppointmentStatus(apt.id, apt.status)}>
+                                  Check In
+                                </Button>
+                              )}
+                              {apt.status === 'checked_in' && (
+                                <Button size="sm" variant="primary" onClick={() => handleNextAppointmentStatus(apt.id, apt.status)}>
+                                  Waiting
+                                </Button>
+                              )}
+                              {apt.status === 'waiting' && (
+                                <Button size="sm" variant="primary" onClick={() => handleNextAppointmentStatus(apt.id, apt.status)}>
+                                  Call In →
+                                </Button>
+                              )}
+                              {apt.status === 'in_consultation' && (
+                                <Button size="sm" variant="secondary" onClick={() => handleNextAppointmentStatus(apt.id, apt.status)}>
+                                  Finish ✓
+                                </Button>
+                              )}
+                              {apt.status === 'completed' && (
+                                <span className="badge badge-success">Consulted</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* SUB-VIEW 2: VISITING DOCTOR ROSTER */}
+          {doctorSubTab === 'roster' && (
+            <div className="grid grid-cols-3 md-grid-cols-2 sm-grid-cols-1 gap-3">
+              {(centerDoctors.length > 0 ? centerDoctors : allDoctors.slice(0, 3)).map((doc) => (
+                <div key={doc.id} className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.75rem', backgroundColor: 'var(--slate-50)' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <img src={doc.photoUrl} alt={doc.name} style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', objectFit: 'cover' }} />
+                    <div>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{doc.name}</h4>
+                      <p style={{ color: 'var(--primary-700)', fontSize: '0.8rem', fontWeight: 600 }}>{doc.specialization}</p>
+                      <p className="text-xs text-muted">Chamber 4 • Fee: ৳700</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.35rem', borderTop: '1px solid var(--slate-200)', paddingTop: '0.5rem' }}>
+                    <Button size="sm" variant="outline" style={{ flex: 1 }} leftIcon={<Edit size={13} />} onClick={() => handleOpenEditDoctor(doc)}>
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="danger" leftIcon={<Trash2 size={13} />} onClick={() => handleDeleteDoctor(doc.id)}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -710,6 +979,31 @@ export const DiagnosticDashboardPage: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* TAB 5: FINANCIAL REPORT & MEDIFY PROFIT */}
+      {activeTab === 'financials' && (
+        <FinancialReportView
+          title="Diagnostic Center Financial Report & Medify Profit"
+          subtitle="Test orders, home sample collections, fee settlements & platform commission ledger"
+          tenantName="Lab Aid Diagnostic Center"
+          tenantType="diagnostic"
+          items={orders.map((ord): FinancialItem => ({
+            id: ord.id,
+            type: 'diagnostic_test',
+            title: ord.testName,
+            patientName: ord.patientName,
+            patientPhone: ord.patientPhone,
+            referenceNo: ord.orderNumber,
+            date: ord.scheduledDate,
+            grossAmount: ord.testPrice || 0,
+            medifyFee: 20,
+            netAmount: (ord.testPrice || 0) - 20,
+            paymentStatus: ord.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+            paymentMethod: ord.paymentMethod,
+            category: ord.bookingType === 'home_collection' ? 'Home Sample Collection' : 'Walk-in Lab Visit',
+          }))}
+        />
       )}
 
       {/* PDF Upload Modal */}
@@ -866,6 +1160,20 @@ export const DiagnosticDashboardPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+      <ManualLabOrderModal
+        isOpen={isManualLabOrderOpen}
+        onClose={() => setIsManualLabOrderOpen(false)}
+        institutionId={centerId}
+        institutionName="Lab Aid Diagnostic Center"
+        onSuccess={() => refetchOrders()}
+      />
+
+      <ManualBookingModal
+        isOpen={isManualBookingOpen}
+        onClose={() => setIsManualBookingOpen(false)}
+        fixedLocationId="LOC-002"
+        onSuccess={() => refetchAppointments()}
+      />
     </div>
   );
 };

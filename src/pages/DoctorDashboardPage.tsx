@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { useAppointments, useDoctor, useStaff, useUpdateAppointmentStatus, useRecordPayment } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
-import { Plus, FileText, Building2, Stethoscope, MapPin, ChevronRight, RotateCcw, Calendar, Users, Edit, Trash2, Phone, User } from 'lucide-react';
+import { Plus, FileText, Building2, Stethoscope, MapPin, ChevronRight, RotateCcw, Calendar, Users, Edit, Trash2, Phone, User, DollarSign, Receipt } from 'lucide-react';
 import type { AppointmentStatus } from '../types';
 import { mockStaff } from '../api/mock/data';
+import { FinancialReportView, FinancialItem } from '../components/domain/FinancialReportView';
 
 export const DoctorDashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -23,7 +24,7 @@ export const DoctorDashboardPage: React.FC = () => {
 
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
   const [activeLocationFilter, setActiveLocationFilter] = useState<string>(locIdParam || 'all');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<'queue' | 'staff_management'>('queue');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'queue' | 'staff_management' | 'financials'>('queue');
 
   // Time & Date Filtering
   const [timeFilter, setTimeFilter] = useState<'today' | 'upcoming' | 'past' | 'all'>('today');
@@ -223,7 +224,7 @@ export const DoctorDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Tab Navigation: Queue Operations vs Chamber Staff Management */}
+      {/* Main Tab Navigation: Queue Operations vs Chamber Staff Management vs Financial Report */}
       <div className="tabs-nav" style={{ marginBottom: '1.25rem' }}>
         <button
           className={`tab-btn ${activeDashboardTab === 'queue' ? 'active' : ''}`}
@@ -236,6 +237,14 @@ export const DoctorDashboardPage: React.FC = () => {
           onClick={() => setActiveDashboardTab('staff_management')}
         >
           Chamber Staff & Assistants Management ({doctorStaff.length})
+        </button>
+        <button
+          className={`tab-btn ${activeDashboardTab === 'financials' ? 'active' : ''}`}
+          onClick={() => setActiveDashboardTab('financials')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <DollarSign size={14} />
+          Financial Report & Medify Profit
         </button>
       </div>
 
@@ -548,6 +557,32 @@ export const DoctorDashboardPage: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* TAB 3: FINANCIAL REPORT & MEDIFY PROFIT */}
+      {activeDashboardTab === 'financials' && (
+        <FinancialReportView
+          title="Doctor Practice Financial Report"
+          subtitle={`Consultation fees, earnings settlement & Medify platform fee ledger for ${doctor?.name}`}
+          tenantName={doctor?.name || 'Doctor Practice'}
+          tenantType="doctor"
+          items={allAppointments.map((apt): FinancialItem => ({
+            id: apt.id,
+            type: 'doctor_appointment',
+            title: `Consultation (${apt.doctorSpecialization})`,
+            patientName: apt.patientName,
+            patientPhone: apt.patientPhone,
+            referenceNo: `#${apt.serialNumber} • ${apt.id}`,
+            date: apt.appointmentDate,
+            grossAmount: apt.consultationFee || 0,
+            medifyFee: 20,
+            netAmount: (apt.consultationFee || 0) - 20,
+            paymentStatus: apt.paymentStatus === 'paid' ? 'paid' : 'unpaid',
+            paymentMethod: apt.paymentMethod,
+            chamberOrDept: apt.chamberName || apt.institutionName,
+            doctorName: apt.doctorName,
+          }))}
+        />
       )}
 
       {/* Staff Assignment Modal */}

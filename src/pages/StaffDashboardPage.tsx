@@ -13,6 +13,7 @@ import {
 } from '../hooks/useHealthcare';
 import { Button, StatusBadge, Modal } from '../components/ui/Core';
 import { ManualBookingModal } from '../components/domain/ManualBookingModal';
+import { ManualLabOrderModal } from '../components/domain/ManualLabOrderModal';
 import { Plus, Phone, Stethoscope, Building2, User, FileText, CheckCircle2, RotateCcw, Calendar, Edit, Trash2, Search, Users, MapPin, Tag, FlaskConical, Clock } from 'lucide-react';
 import type { AppointmentStatus, DiagnosticOrderStatus, Staff } from '../types';
 import { mockStaff } from '../api/mock/data';
@@ -22,6 +23,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
 }) => {
   const { currentUser } = useAuth();
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
+  const [isManualLabOrderOpen, setIsManualLabOrderOpen] = useState(false);
 
   // Scoped Entity IDs & Task Meta
   const assignedDoctorId = currentUser.assignedDoctorId || 'DOC-001';
@@ -345,7 +347,7 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
               variant="primary"
               size="sm"
               leftIcon={<Plus size={15} />}
-              onClick={() => alert('New test order registration initiated for patient.')}
+              onClick={() => setIsManualLabOrderOpen(true)}
             >
               Register Lab Order
             </Button>
@@ -682,6 +684,14 @@ export const StaffDashboardPage: React.FC<{ staffType: 'doctor_staff' | 'hospita
         fixedDoctorId={staffType === 'doctor_staff' || (currentUser.assignedDoctorId && staffTaskType === 'chamber_desk') ? assignedDoctorId : undefined}
         fixedLocationId={assignedLocationId || (staffType === 'hospital_staff' ? 'LOC-001' : staffType === 'diagnostic_staff' ? 'LOC-002' : undefined)}
         onSuccess={() => refetchAppointments()}
+      />
+
+      <ManualLabOrderModal
+        isOpen={isManualLabOrderOpen}
+        onClose={() => setIsManualLabOrderOpen(false)}
+        institutionId={staffType === 'hospital_staff' ? hospitalId : diagnosticCenterId}
+        institutionName={staffType === 'hospital_staff' ? 'Ibn Sina Specialized Hospital' : 'Lab Aid Diagnostic Center'}
+        onSuccess={() => refetchDiagnostic()}
       />
     </div>
   );
